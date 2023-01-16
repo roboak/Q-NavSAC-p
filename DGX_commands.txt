@@ -1,0 +1,9 @@
+DGX command to create virtual machine - 
+
+srun -K --ntasks=1 --gpus-per-task=1 --cpus-per-gpu=6 -p V100-16GB --mem=30GB --container-mounts=/netscratch:/netscratch,/ds:/ds,`pwd`:`pwd` --container-image=/netscratch/dikshant/carla_v2.sqsh --container-workdir=`pwd` --job-name hylear  --pty --no-container-remap-root bash
+
+
+!!!Note!!! --> You will need a python virtual enviroment to run the code. The virtual environment is located here (/netscratch/dikshant/py37). To use this environment, do something like "/netscratch/dikshant/py37/bin/python train.py"
+
+
+
