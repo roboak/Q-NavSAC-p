@@ -8,7 +8,7 @@ from multiprocessing import Process
 
 
 from SAC.sac_discrete import SacdAgent
-from SAC.sac_discrete.shared_sacd import SharedSacdAgent
+from SAC.sac_discrete.sacd.shared_sacd import SharedSacdAgent
 from benchmark.environment import GIDASBenchmark
 from config import Config
 

@@ -46,7 +46,7 @@ class DQNBase(BaseNetwork):
         states = states.permute(0, 3, 1, 2)
         return self.net(states)
 
-
+# TODO: Create quantum Q network
 class QNetwork(BaseNetwork):
 
     def __init__(self, num_channels, num_actions, shared=False,
@@ -58,7 +58,7 @@ class QNetwork(BaseNetwork):
 
         if not dueling_net:
             self.head = nn.Sequential(
-                nn.Linear(46 * 46 * 64 + 6, 512),
+                nn.Linear(46 * 46 * 64 + 6, 512), # TODO: Identify how are these numbers coming
                 nn.ReLU(inplace=True),
                 nn.Linear(512, num_actions))
         else:
@@ -85,7 +85,7 @@ class QNetwork(BaseNetwork):
             v = self.v_head(states)
             return v + a - a.mean(1, keepdim=True)
 
-
+# TODO: Change this to switch between classical Q network and  quantum Q network
 class TwinnedQNetwork(BaseNetwork):
     def __init__(self, num_channels, num_actions, shared=False,
                  dueling_net=False):
@@ -99,7 +99,7 @@ class TwinnedQNetwork(BaseNetwork):
         return q1, q2
 
 
-class CateoricalPolicy(BaseNetwork):
+class CategoricalPolicy(BaseNetwork):
 
     def __init__(self, num_channels, num_actions, shared=False):
         super().__init__()

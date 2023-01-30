@@ -9,9 +9,9 @@ from datetime import datetime
 import time
 import pickle as pkl
 
-from .base import BaseAgent
+from .BaseAgent import BaseAgent
 from config import Config
-from SAC.sac_discrete.sacd.model import DQNBase, TwinnedQNetwork, CateoricalPolicy
+from SAC.sac_discrete.sacd.model import DQNBase, TwinnedQNetwork, CategoricalPolicy
 
 
 class EvalSacdAgent(BaseAgent):
@@ -32,7 +32,7 @@ class EvalSacdAgent(BaseAgent):
         # Define networks.
         self.conv = DQNBase(
             self.env.observation_space.shape[2]).to(self.device)
-        self.policy = CateoricalPolicy(
+        self.policy = CategoricalPolicy(
             self.env.observation_space.shape[2], self.env.action_space.n,
             shared=True).to(self.device)
         self.online_critic = TwinnedQNetwork(

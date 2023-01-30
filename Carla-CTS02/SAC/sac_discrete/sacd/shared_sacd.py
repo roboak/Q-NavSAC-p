@@ -3,9 +3,9 @@ import numpy as np
 import torch
 from torch.optim import Adam
 
-from .base import BaseAgent
-from SAC.sac_discrete.sacd.model import DQNBase, TwinnedQNetwork, CateoricalPolicy
-from SAC.sac_discrete.sacd.utils import disable_gradients
+from SAC.sac_discrete.BaseAgent import BaseAgent
+from SAC.sac_discrete.sacd.model import DQNBase, TwinnedQNetwork, CategoricalPolicy
+from SAC.sac_discrete.utils import disable_gradients
 
 
 class SharedSacdAgent(BaseAgent):
@@ -23,22 +23,25 @@ class SharedSacdAgent(BaseAgent):
             target_update_interval, use_per, num_eval_steps, max_episode_steps, save_interval,
             log_interval, eval_interval, cuda, seed)
 
-        # Define networks.
-        self.conv = DQNBase(
-            self.env.observation_space.shape[2]).to(self.device)
-        self.policy = CateoricalPolicy(
-            self.env.observation_space.shape[2], self.env.action_space.n,
-            shared=True).to(self.device)
-        self.online_critic = TwinnedQNetwork(
-            self.env.observation_space.shape[2], self.env.action_space.n,
-            dueling_net=dueling_net, shared=True).to(device=self.device)
-        self.target_critic = TwinnedQNetwork(
-            self.env.observation_space.shape[2], self.env.action_space.n,
-            dueling_net=dueling_net, shared=True).to(device=self.device).eval()
+        self.dueling_net = dueling_net
+
+        # # Define networks.
+        # self.conv = DQNBase(
+        #     self.env.observation_space.shape[2]).to(self.device)
+        # self.policy = CateoricalPolicy(
+        #     self.env.observation_space.shape[2], self.env.action_space.n,
+        #     shared=True).to(self.device)
+        # self.online_critic = TwinnedQNetwork(
+        #     self.env.observation_space.shape[2], self.env.action_space.n,
+        #     dueling_net=dueling_net, shared=True).to(device=self.device)
+        # self.target_critic = TwinnedQNetwork(
+        #     self.env.observation_space.shape[2], self.env.action_space.n,
+        #     dueling_net=dueling_net, shared=True).to(device=self.device).eval()
 
         # Copy parameters of the learning network to the target network.
         self.target_critic.load_state_dict(self.online_critic.state_dict())
 
+        self.createNetwork()
         if path:
             self.resume = True
             self.conv.load_state_dict(torch.load(path + "conv.pth"))
@@ -63,6 +66,21 @@ class SharedSacdAgent(BaseAgent):
         self.log_alpha = torch.zeros(1, requires_grad=True, device=self.device)
         self.alpha = self.log_alpha.exp()
         self.alpha_optim = Adam([self.log_alpha], lr=lr)
+
+    # TODO: This function will have to be redefined for QSAC - QSharedSACdAgent.py
+    def createNetwork(self):
+        self.conv = DQNBase(
+            self.env.observation_space.shape[2]).to(self.device)
+        self.policy = CategoricalPolicy(
+            self.env.observation_space.shape[2], self.env.action_space.n,
+            shared=True).to(self.device)
+        self.online_critic = TwinnedQNetwork(
+            self.env.observation_space.shape[2], self.env.action_space.n,
+            dueling_net=self.dueling_net, shared=True).to(device=self.device)
+        self.target_critic = TwinnedQNetwork(
+            self.env.observation_space.shape[2], self.env.action_space.n,
+            dueling_net=self.dueling_net, shared=True).to(device=self.device).eval()
+
 
     def explore(self, state):
         # Act with randomness.
