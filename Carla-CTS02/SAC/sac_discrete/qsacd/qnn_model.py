@@ -1,10 +1,16 @@
 import math
+from enum import Enum
+import time
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal
 import pennylane as qml
 
+from SAC.sac_discrete.sacd.model import BaseNetwork
+class DataEncodingForQVC(Enum):
+  AMPLITUDE_ENCODING = 1
+  ANGLE_ENCODING = 2
 
 def layer_init(layer, init_type='default', nonlinearity='relu', w_scale=1.0):
   nonlinearity = nonlinearity.lower()
@@ -27,7 +33,8 @@ def layer_init(layer, init_type='default', nonlinearity='relu', w_scale=1.0):
 
 def GetVQC(n_qubits: int, qnn_layers: int, qnn_type: str):
   if qnn_type == 'ReUploadingVQC':
-    def ReUploadingVQC(inputs, entangling_weights, embedding_weights):
+    # TODO: Change this for ReUploadingVQC
+    def ReUploadingVQC(inputs, entangling_weights, embedding_weights): # these are the shapes and not the actual weights.
       '''
       A variational quantum circuit (VQC) with data re-uploading
       '''
@@ -57,68 +64,63 @@ def GetVQC(n_qubits: int, qnn_layers: int, qnn_type: str):
       '''
       A variational quantum circuit (VQC) (without data re-uploading)
       '''
-      qml.AngleEmbedding(features=inputs, wires=range(n_qubits))
+      # if(encoding == DataEncodingForQVC.AMPLITUDE_ENCODING):
+      qml.AmplitudeEmbedding(features=inputs, wires= range(n_qubits), normalize=True, pad_with=0)
+      # if(encoding == DataEncodingForQVC.ANGLE_ENCODING):
+      #   qml.AngleEmbedding(features=inputs, wires=range(n_qubits))
+
       qml.StronglyEntanglingLayers(entangling_weights, wires=range(n_qubits))
       return [qml.expval(qml.PauliZ(wires=i)) for i in range(n_qubits)]
+
     entangling_weights_shape = qml.StronglyEntanglingLayers.shape(n_layers=qnn_layers, n_wires=n_qubits)
     weight_shapes = {'entangling_weights': entangling_weights_shape}
     return NormalVQC, weight_shapes
 
 
-class HybridModel(torch.nn.Module):
-  def __init__(self, input_dim, output_dim, qnn_layers, qnn_type, last_w_scale, QPU_device, torch_device):
+class HybridQuantumQNetwork(torch.nn.Module):
+  def get_n_qubits(self, input_dim: str, encoding: DataEncodingForQVC) -> int:
+    if(encoding == DataEncodingForQVC.AMPLITUDE_ENCODING):
+      return math.ceil(math.log(input_dim,2))
+    else:
+      return -1
+    #TODO: implement this function for the rest
+
+  def __init__(self, input_dim, output_dim, qnn_layers, qnn_type, last_w_scale, device, encoding=DataEncodingForQVC.AMPLITUDE_ENCODING):
     super().__init__()
     # Create a QNode
-    n_qubits = input_dim # TODO: Fix this.
-    if QPU_device == 'default.qubit.torch':
-      dev = qml.device(QPU_device, wires=n_qubits, torch_device=torch_device)
+    n_qubits = self.get_n_qubits(input_dim=input_dim, encoding=encoding)
+    if(device == 'cuda'):
+      dev = qml.device('default.qubit.torch', wires=n_qubits, torch_device='cuda')
     else:
-      dev = qml.device(QPU_device, wires=n_qubits)
+      dev = qml.device('default.qubit', wires=n_qubits)
     VQC, weight_shapes = GetVQC(n_qubits, qnn_layers, qnn_type)
     qnode = qml.QNode(VQC, dev, interface='torch', diff_method='best')
     self.qlayer = qml.qnn.TorchLayer(qnode, weight_shapes)
-    # Create a output layer #TODO: Fix this -> n_qubits x actions
-    self.output = layer_init(nn.Linear(input_dim, output_dim), init_type='kaiming_uniform_', w_scale=last_w_scale)
+    # Create a output layer : output_dim = n_actions
+    self.output = layer_init(nn.Linear(n_qubits, output_dim), init_type='kaiming_uniform_', w_scale=last_w_scale)
 
   def forward(self, x):
+    st = time.time()
     x = self.qlayer(x)
     x = self.output(x)
+    elapsed_time = time.time()-st
+    print('Execution time for Q network:', elapsed_time, 'seconds')
     return x
 
 
-class QuantumSquashedGaussianActor(nn.Module):
-  def __init__(self, state_size, action_size, qnn_layers, qnn_type, action_lim, last_w_scale=1e-3, QPU_device='default.qubit', torch_device='cpu', rsample=False):
+
+
+class TwinnedQuantumQNetwork(BaseNetwork):
+  def __init__(self, input_dim, num_actions, qnn_layers, qnn_type, device, last_w_scale=1e-3):
     super().__init__()
-    self.rsample = rsample
-    self.actor_net = HybridModel(input_dim=state_size, output_dim=2*action_size, qnn_layers=qnn_layers, qnn_type=qnn_type, last_w_scale=last_w_scale, QPU_device=QPU_device, torch_device=torch_device)
-    self.action_lim = action_lim
+    self.Q1 = HybridQuantumQNetwork(input_dim=input_dim, output_dim=num_actions, qnn_layers=qnn_layers, qnn_type=qnn_type, last_w_scale = last_w_scale,
+                                    device=device)
+    self.Q2 = HybridQuantumQNetwork(input_dim=input_dim, output_dim=num_actions, qnn_layers=qnn_layers, qnn_type=qnn_type, last_w_scale = last_w_scale,
+                                    device=device)
 
-  def distribution(self, phi):
-    action_mean, action_std = self.actor_net(phi).chunk(2, dim=-1)
-    # Constrain action_std inside [1e-6, 10]
-    action_std = torch.clamp(F.softplus(action_std), 1e-6, 10)
-    return action_mean, action_std, Normal(action_mean, action_std)
+  def forward(self, states):
+    q1 = self.Q1(states)
+    q2 = self.Q2(states)
+    return q1, q2
 
-  def log_pi_from_distribution(self, action_distribution, action):
-    # NOTE: Check out the original SAC paper and https://github.com/openai/spinningup/issues/279 for details
-    log_pi = action_distribution.log_prob(action).sum(axis=-1)
-    log_pi -= (2*(math.log(2) - action - F.softplus(-2*action))).sum(axis=-1)
-    # Constrain log_pi inside [-20, 20]
-    log_pi = torch.clamp(log_pi, -20, 20)
-    return log_pi
 
-  def forward(self, phi, action=None, deterministic=False):
-    # Compute action distribution and the log_pi of given actions
-    action_mean, action_std, action_distribution = self.distribution(phi)
-    if action is None:
-      if deterministic:
-        u = action_mean
-      else:
-        u = action_distribution.rsample() if self.rsample else action_distribution.sample()
-      action = self.action_lim * torch.tanh(u)
-    else:
-      u = torch.clamp(action / self.action_lim, -0.999, 0.999)
-      u = torch.atanh(u)
-    # Compute logprob from Gaussian, and then apply correction for Tanh squashing.
-    log_pi = self.log_pi_from_distribution(action_distribution, u)
-    return action, action_mean, action_std, log_pi

@@ -10,7 +10,7 @@ from config import Config
 
 
 class BaseAgent(ABC):
-
+    # TODO: Identify what is per
     def __init__(self, env, test_env, log_dir, num_steps=100000, batch_size=64,
                  memory_size=1000000, gamma=0.99, multi_step=1,
                  target_entropy_ratio=0.98, start_steps=20000,
@@ -25,8 +25,8 @@ class BaseAgent(ABC):
         # Set seed.
         torch.manual_seed(seed)
         np.random.seed(seed)
-        self.env.seed(seed)
-        self.test_env.seed(2**31-1-seed)
+        # self.env.seed(seed)
+        # self.test_env.seed(2**31-1-seed)
 
         # torch.backends.cudnn.deterministic = True  # It harms a performance.
         # torch.backends.cudnn.benchmark = False  # It harms a performance.
@@ -120,7 +120,7 @@ class BaseAgent(ABC):
     def calc_entropy_loss(self, entropies, weights):
         pass
 
-    ## Rresponsible for executing a training epoisode  and storing theepisode in replay buffer
+    ## Rresponsible for executing a training epoisode  and storing the episode in replay buffer
     def train_episode(self):
         self.episodes += 1
         episode_return = 0.
@@ -341,7 +341,7 @@ class BaseAgent(ABC):
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
 
-    def __del__(self):
-        self.env.close()
-        self.test_env.close()
-        self.file.close()
+    # def __del__(self):
+    #     self.env.close()
+    #     self.test_env.close()
+    #     self.file.close()

@@ -31,7 +31,7 @@ class GIDASBenchmark(gym.Env):
         pygame.font.init()
 
         self.client = carla.Client(Config.host, port)
-        self.client.set_timeout(100.0)
+        self.client.set_timeout(150.0)
 
         self.control = None
         self.display = None

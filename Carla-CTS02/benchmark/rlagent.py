@@ -18,7 +18,7 @@ from config import Config
 from assets.occupancy_grid import OccupancyGrid
 from benchmark.path_planner.hybridastar import HybridAStar
 from benchmark.risk.risk_aware_path import PathPlanner
-from ped_path_predictor.m2p3 import PathPredictor
+# from ped_path_predictor.m2p3 import PathPredictor
 
 
 class RLAgent(Agent):
@@ -341,8 +341,8 @@ class RLAgent(Agent):
             (points_2d[:, 1] > 0.0) & (points_2d[:, 1] < image_h) & \
             (points_2d[:, 2] > 0.0)
         points_2d = points_2d[points_in_canvas_mask]
-        u_coord = points_2d[:, 0].astype(np.int)
-        v_coord = points_2d[:, 1].astype(np.int)
+        u_coord = points_2d[:, 0].astype(np.intc)
+        v_coord = points_2d[:, 1].astype(np.intc)
         return u_coord, v_coord
 
     def get_car_intention(self, obstacles, path, start):

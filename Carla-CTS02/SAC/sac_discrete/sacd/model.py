@@ -42,9 +42,18 @@ class DQNBase(BaseNetwork):
             Flatten(),
         ).apply(initialize_weights_he)
 
+        self.dim_reduction = nn.Sequential(
+                nn.Linear(46 * 46 * 64 + 6, 512), # TODO: Identify how are these numbers coming
+                nn.ReLU(inplace=True))
+
     def forward(self, states):
-        states = states.permute(0, 3, 1, 2)
-        return self.net(states)
+        # this helps reorganise the states from (1x400x400x3) -> (1x3x400x400)
+        state, t = states
+        state = state.permute(0, 3, 1, 2)
+        out = self.net(state)
+        out = torch.cat([out, t], dim=1)
+        out = self.dim_reduction(out)
+        return out
 
 # TODO: Create quantum Q network
 class QNetwork(BaseNetwork):
@@ -53,39 +62,20 @@ class QNetwork(BaseNetwork):
                  dueling_net=False):
         super().__init__()
 
-        if not shared:
-            self.conv = DQNBase(num_channels)
+        # self.conv = DQNBase(num_channels)
+        # self.head = nn.Sequential(
+        #         nn.Linear(46 * 46 * 64 + 6, 512), # TODO: Identify how are these numbers coming
+        #         nn.ReLU(inplace=True),
+        #         nn.Linear(512, num_actions))
 
-        if not dueling_net:
-            self.head = nn.Sequential(
-                nn.Linear(46 * 46 * 64 + 6, 512), # TODO: Identify how are these numbers coming
-                nn.ReLU(inplace=True),
-                nn.Linear(512, num_actions))
-        else:
-            self.a_head = nn.Sequential(
-                nn.Linear(46 * 46 * 64 + 6, 512),
-                nn.ReLU(inplace=True),
-                nn.Linear(512, num_actions))
-            self.v_head = nn.Sequential(
-                nn.Linear(46 * 46 * 64 + 6, 512),
-                nn.ReLU(inplace=True),
-                nn.Linear(512, 1))
+        self.head = nn.Linear(512, num_actions)
 
-        self.shared = shared
-        self.dueling_net = dueling_net
 
     def forward(self, states):
-        if not self.shared:
-            states = self.conv(states)
+        # states = self.conv(states)
+        return self.head(states)
 
-        if not self.dueling_net:
-            return self.head(states)
-        else:
-            a = self.a_head(states)
-            v = self.v_head(states)
-            return v + a - a.mean(1, keepdim=True)
 
-# TODO: Change this to switch between classical Q network and  quantum Q network
 class TwinnedQNetwork(BaseNetwork):
     def __init__(self, num_channels, num_actions, shared=False,
                  dueling_net=False):
@@ -103,19 +93,19 @@ class CategoricalPolicy(BaseNetwork):
 
     def __init__(self, num_channels, num_actions, shared=False):
         super().__init__()
-        if not shared:
-            self.conv = DQNBase(num_channels)
+        # if not shared:
+        #     self.conv = DQNBase(num_channels)
 
-        self.head = nn.Sequential(
-            nn.Linear(46 * 46 * 64 + 6, 512),
-            nn.ReLU(inplace=True),
-            nn.Linear(512, num_actions))
+        # self.head = nn.Sequential(
+        #     nn.Linear(46 * 46 * 64 + 6, 512),
+        #     nn.ReLU(inplace=True),
+        #     nn.Linear(512, num_actions))
+        self.head = nn.Linear(512, num_actions)
 
-        self.shared = shared
 
     def act(self, states):
-        if not self.shared:
-            states = self.conv(states)
+        # if not self.shared:
+        #     states = self.conv(states)
 
         action_logits = self.head(states)
         greedy_actions = torch.argmax(
@@ -123,8 +113,8 @@ class CategoricalPolicy(BaseNetwork):
         return greedy_actions
 
     def sample(self, states, probs=None, steps=None):
-        if not self.shared:
-            states = self.conv(states)
+        # if not self.shared:
+        #     states = self.conv(states)
 
         action_probs = F.softmax(self.head(states), dim=1)
         if probs is not None and steps is not None:

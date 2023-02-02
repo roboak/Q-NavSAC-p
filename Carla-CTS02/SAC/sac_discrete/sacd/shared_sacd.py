@@ -39,7 +39,6 @@ class SharedSacdAgent(BaseAgent):
         #     dueling_net=dueling_net, shared=True).to(device=self.device).eval()
 
         # Copy parameters of the learning network to the target network.
-        self.target_critic.load_state_dict(self.online_critic.state_dict())
 
         self.createNetwork()
         if path:
@@ -67,29 +66,38 @@ class SharedSacdAgent(BaseAgent):
         self.alpha = self.log_alpha.exp()
         self.alpha_optim = Adam([self.log_alpha], lr=lr)
 
-    # TODO: This function will have to be redefined for QSAC - QSharedSACdAgent.py
+    # TODO: This function will have to be redefined for QSAC - QSharedSACdAgent.py.
+    # Can we simply create a different implementation of TwinnedNeetwork?
     def createNetwork(self):
         self.conv = DQNBase(
             self.env.observation_space.shape[2]).to(self.device)
         self.policy = CategoricalPolicy(
             self.env.observation_space.shape[2], self.env.action_space.n,
             shared=True).to(self.device)
+        # observation_space = (0, 255, (400, 400, 3))
+        # shape(observation_space) = (400, 400, 3)
         self.online_critic = TwinnedQNetwork(
             self.env.observation_space.shape[2], self.env.action_space.n,
             dueling_net=self.dueling_net, shared=True).to(device=self.device)
         self.target_critic = TwinnedQNetwork(
             self.env.observation_space.shape[2], self.env.action_space.n,
             dueling_net=self.dueling_net, shared=True).to(device=self.device).eval()
+        self.target_critic.load_state_dict(self.online_critic.state_dict())
+        print("DQNBase", self.conv)
+        print("Online Critic", self.online_critic)
+        print("Policy", self.policy)
 
 
     def explore(self, state):
         # Act with randomness.
+        # (state(400x400x3) is the car intention, t is the record to be stored in replay buffer).
         state, t = state
         state = torch.ByteTensor(state[None, ...]).to(self.device).float() / 255.
         t = torch.FloatTensor(t[None, ...]).to(self.device)
         with torch.no_grad():
-            state = self.conv(state)
-            state = torch.cat([state, t], dim=1)
+            # here state is a 512 dimension vector
+            state = self.conv((state, t))
+            # state = torch.cat([state, t], dim=1)
             action, _, _ = self.policy.sample(state)
             curr_q1 = self.online_critic.Q1(state)
             curr_q2 = self.online_critic.Q2(state)
@@ -103,8 +111,9 @@ class SharedSacdAgent(BaseAgent):
         state = torch.ByteTensor(state[None, ...]).to(self.device).float() / 255.
         t = torch.FloatTensor(t[None, ...]).to(self.device)
         with torch.no_grad():
-            state = self.conv(state)
-            state = torch.cat([state, t], dim=1)
+            state = self.conv((state, t))
+            # state = torch.cat([state, t], dim=1)
+            # the following line makes the difference between explore and exploit.
             action = self.policy.act(state)
         return action.item()
 
@@ -113,8 +122,8 @@ class SharedSacdAgent(BaseAgent):
 
     def calc_current_q(self, states, actions, rewards, next_states, dones):
         states, t = states
-        states = self.conv(states)
-        states = torch.cat([states, t], dim=-1)
+        states = self.conv((states, t))
+        # states = torch.cat([states, t], dim=-1)
         curr_q1 = self.online_critic.Q1(states).gather(1, actions.long())
         curr_q2 = self.online_critic.Q2(states.detach()).gather(1, actions.long())
         return curr_q1, curr_q2
@@ -122,8 +131,8 @@ class SharedSacdAgent(BaseAgent):
     def calc_target_q(self, states, actions, rewards, next_states, dones):
         with torch.no_grad():
             next_states, t_new = next_states
-            next_states = self.conv(next_states)
-            next_states = torch.cat([next_states, t_new], dim=1)
+            next_states = self.conv((next_states, t_new))
+            # next_states = torch.cat([next_states, t_new], dim=1)
             _, action_probs, log_action_probs = self.policy.sample(next_states)
             next_q1, next_q2 = self.target_critic(next_states)
             next_q = (action_probs * (
@@ -155,8 +164,8 @@ class SharedSacdAgent(BaseAgent):
         states, t = states
 
         with torch.no_grad():
-            states = self.conv(states)
-        states = torch.cat([states, t], dim=1)
+            states = self.conv((states, t))
+        # states = torch.cat([states, t], dim=1)
 
         # (Log of) probabilities to calculate expectations of Q and entropies.
         _, action_probs, log_action_probs = self.policy.sample(states)
