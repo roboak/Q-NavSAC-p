@@ -363,10 +363,13 @@ class RLAgent(Agent):
         #     pkl.dump(car_intention, file)
         # car_intention = np.transpose(car_intention, (2, 0, 1))
         # assert car_intention.shape[0] == 3
-        cv2.namedWindow(winname='CarIntention')
 
-        cv2.imshow('CarIntention', car_intention)
-        cv2.waitKey(1)
+
+        # cv2.namedWindow(winname='CarIntention')
+        #
+        # cv2.imshow('CarIntention', car_intention)
+        # cv2.waitKey(1)
+
         return car_intention
 
     def run_step(self, debug=False):

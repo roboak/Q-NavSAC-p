@@ -23,6 +23,7 @@ def run(args):
 
     # Specify the directory to log.
     name = args.config.split('/')[-1].rstrip('.yaml')
+    name += "qsac" if args.qsac else ""
     time = datetime.now().strftime("%Y%m%d-%H%M")
     log_dir = os.path.join(
         '_out', args.env_id, f'{name}-seed{args.seed}-{time}')
@@ -40,27 +41,25 @@ def run(args):
     agent.run()
 
 
-def run_server():
+def run_server(local: bool, mode = str):
     # train environment
-    port = "-carla-port={}".format(Config.port)
-    # subprocess.run(['cd C:/Users/aksi01/Documents/CARLA_0.9.13/WindowsNoEditor && SDL_VIDEODRIVER=offscreen CarlaUE4 -opengl ' + port], shell=True)
-    subprocess.run("cd D:/CARLA_0.9.13/WindowsNoEditor && CarlaUE4.exe "+port, shell=True)
-    # Command to run in no rending mode on windows: CarlaUE4 -opengl -RenderOffScreen
-    # Link: https://carla.readthedocs.io/en/latest/adv_rendering_options/
-
-
-def run_test_server():
-    # test environment
-    port = "-carla-port={}".format(Config.port + 100)
-    # subprocess.run(['cd C:/Users/aksi01/Documents/CARLA_0.9.13/WindowsNoEditor && SDL_VIDEODRIVER=offscreen ./CarlaUE4 -opengl ' + port], shell=True)
-    subprocess.run("cd D:/CARLA_0.9.13/WindowsNoEditor && CarlaUE4.exe "+port, shell=True)
-
+    if mode == "train":
+        port = "-carla-port={}".format(2000)
+    else:
+        port = "-carla-port={}".format(2100)
+    if local:
+        print("executing locally")
+        subprocess.run("cd D:/CARLA_0.9.13/WindowsNoEditor && CarlaUE4.exe " + port, shell=True)
+    else:
+        print("executing on slurm cluster")
+        subprocess.run(['cd /netscratch/sinha/carla && unset SDL_VIDEODRIVER && ./CarlaUE4.sh -vulkan -RenderOffscreen -nosound ' + port], shell=True)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '--config', type=str, default=os.path.join('SAC/sac_discrete/config', 'sacd.yaml'))
     parser.add_argument('--qsac', action='store_true')
+    parser.add_argument('--local', action='store_true')
     parser.add_argument('--env_id', type=str, default='GIDASBenchmark')
     parser.add_argument('--cuda', action='store_true')
     parser.add_argument('--seed', type=int, default=0)
@@ -68,15 +67,13 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     Config.port = args.port
-    # print('Env. port: {}'.format(Config.port))
-    #
-    # p = Process(target=run_server)
-    # p.start()
-    # time.sleep(10)
-    # print('Run server started')
-    #
-    # p2 = Process(target=run_test_server)
-    # p2.start()
-    # time.sleep(10)
+    print('Env. port: {}'.format(Config.port))
+
+    p = Process(target=run_server, args=(args.local, "train", ))
+    p.start()
+    time.sleep(12)
+    p = Process(target=run_server, args=(args.local, "test", ))
+    p.start()
+    time.sleep(12)
 
     run(args)
