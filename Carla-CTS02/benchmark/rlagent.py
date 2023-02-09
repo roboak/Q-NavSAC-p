@@ -349,7 +349,7 @@ class RLAgent(Agent):
         self.past_trajectory.append(start)
         # print("debug: ", self.world.semseg_sensor.array)
         while(self.world.semseg_sensor.array is None):
-            print("debug: waiting")
+            # print("debug: waiting")
             time.sleep(1)
         car_intention = self.world.semseg_sensor.array.copy()
         if len(path) == 0:

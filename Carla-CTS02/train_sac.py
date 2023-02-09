@@ -23,11 +23,11 @@ def run(args):
 
     # Specify the directory to log.
     name = args.config.split('/')[-1].rstrip('.yaml')
-    name += "qsac" if args.qsac else ""
+    name += "-qsac-" if args.qsac else ""
     time = datetime.now().strftime("%Y%m%d-%H%M")
     log_dir = os.path.join(
         '_out', args.env_id, f'{name}-seed{args.seed}-{time}')
-
+    print("log_dir:", log_dir)
     # Create the agent.
     # path = "_out/GIDASBenchmark/shared-sacd-seed0-20220303-1356/model/3000000/"
     config['num_steps'] = 2e6
@@ -57,7 +57,7 @@ def run_server(local: bool, mode = str):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '--config', type=str, default=os.path.join('SAC/sac_discrete/config', 'sacd.yaml'))
+        '--config', type=str, default='SAC/sac_discrete/config/sacd.yaml')
     parser.add_argument('--qsac', action='store_true')
     parser.add_argument('--local', action='store_true')
     parser.add_argument('--env_id', type=str, default='GIDASBenchmark')
@@ -69,11 +69,11 @@ if __name__ == '__main__':
     Config.port = args.port
     print('Env. port: {}'.format(Config.port))
 
-    p = Process(target=run_server, args=(args.local, "train", ))
-    p.start()
-    time.sleep(12)
-    p = Process(target=run_server, args=(args.local, "test", ))
-    p.start()
-    time.sleep(12)
+    # p = Process(target=run_server, args=(args.local, "train", ))
+    # p.start()
+    # time.sleep(12)
+    # p = Process(target=run_server, args=(args.local, "test", ))
+    # p.start()
+    # time.sleep(12)
 
     run(args)

@@ -35,15 +35,15 @@ class EvalSacdAgent(BaseAgent):
         self.policy = CategoricalPolicy(
             self.env.observation_space.shape[2], self.env.action_space.n,
             shared=True).to(self.device)
-        self.online_critic = TwinnedQNetwork(
-            self.env.observation_space.shape[2], self.env.action_space.n,
-            dueling_net=dueling_net, shared=True).to(device=self.device)
-        self.target_critic = TwinnedQNetwork(
-            self.env.observation_space.shape[2], self.env.action_space.n,
-            dueling_net=dueling_net, shared=True).to(device=self.device).eval()
-
-        # Copy parameters of the learning network to the target network.
-        self.target_critic.load_state_dict(self.online_critic.state_dict())
+        # self.online_critic = TwinnedQNetwork(
+        #     self.env.observation_space.shape[2], self.env.action_space.n,
+        #     dueling_net=dueling_net, shared=True).to(device=self.device)
+        # self.target_critic = TwinnedQNetwork(
+        #     self.env.observation_space.shape[2], self.env.action_space.n,
+        #     dueling_net=dueling_net, shared=True).to(device=self.device).eval()
+        #
+        # # Copy parameters of the learning network to the target network.
+        # self.target_critic.load_state_dict(self.online_critic.state_dict())
 
         path = "_out/GIDASBenchmark/summary/best/"
         self.conv.load_state_dict(torch.load(path + "conv.pth"))

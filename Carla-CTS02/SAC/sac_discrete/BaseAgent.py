@@ -1,5 +1,8 @@
 from abc import ABC, abstractmethod
 import os
+import shutil
+from time import sleep
+from pathlib import Path
 import numpy as np
 import torch
 from torch.utils.tensorboard import SummaryWriter
@@ -7,15 +10,15 @@ from torch.utils.tensorboard import SummaryWriter
 from SAC.sac_discrete.memory import LazyMultiStepMemory, LazyPrioritizedMultiStepMemory
 from SAC.sac_discrete.utils import update_params, RunningMeanStats
 from config import Config
-
-
+from tqdm.auto import trange
+# update_interval: network is trained after every 4 episodes.
 class BaseAgent(ABC):
     # TODO: Identify what is per
     def __init__(self, env, test_env, log_dir, num_steps=100000, batch_size=64,
                  memory_size=1000000, gamma=0.99, multi_step=1,
                  target_entropy_ratio=0.98, start_steps=20000,
                  update_interval=4, target_update_interval=8000,
-                 use_per=False, num_eval_steps=125000, max_episode_steps=27000, save_interval=100000,
+                 use_per=False, num_eval_steps=125000, max_episode_steps=500, save_interval=100000,
                  log_interval=10, eval_interval=1000, cuda=True, seed=0, display=False, resume=False):
         super().__init__()
         self.env = env
@@ -79,10 +82,18 @@ class BaseAgent(ABC):
         # self.save_interval = save_interval
 
     def run(self):
-        while True:
+        pbar = trange(int(self.num_steps), unit=" episode", leave=True, position=0)
+        for i in pbar:
+            pbar.set_description(f"Running step {i+1} of total_steps {int(self.num_steps)}")
+            sleep(0.05)
             self.train_episode()
-            if self.steps > self.num_steps:
-                break
+            pbar.refresh()
+
+        pbar.close()
+        # while True:
+        #     self.train_episode()
+        #     if self.steps > self.num_steps:
+        #         break
 
     def is_update(self):
         return self.steps % self.update_interval == 0\
@@ -120,7 +131,7 @@ class BaseAgent(ABC):
     def calc_entropy_loss(self, entropies, weights):
         pass
 
-    ## Rresponsible for executing a training epoisode  and storing the episode in replay buffer
+    ## Rresponsible for executing a single epoisode  and storing the episode in replay buffer
     def train_episode(self):
         self.episodes += 1
         episode_return = 0.
@@ -141,7 +152,14 @@ class BaseAgent(ABC):
 
         # while a single episode ends;
         # max_episode_steps: Max number of steps in anm
-        while (not done) and episode_steps < self.max_episode_steps:
+        pbar = trange(int(self.max_episode_steps), unit=" steps", leave=True, position=0)
+        for i in pbar:
+            pbar.set_description(f"Running step {i} of episode {self.episodes}")
+            pbar.refresh()
+            # sleep(0.05)
+
+        # while (not done) and episode_steps < self.max_episode_steps:
+            if(done):break
             if self.display:
                 self.env.render()
 
@@ -193,7 +211,15 @@ class BaseAgent(ABC):
 
             # learning happens happens after certain interval and after there is enough data
             if self.is_update():
+                # print("learning the model")
                 self.learn()
+                # checkpointing the model after every 5000 steps
+                if(self.steps % Config.model_checkpointing_interval == 0):
+                    self.save_models(os.path.join(self.model_dir, str(self.steps)))
+                    self._clear_checkpoints()
+
+            # else:
+            #     print("not learning the model")
 
             if self.steps % self.target_update_interval == 0:
                 self.update_target()
@@ -204,6 +230,7 @@ class BaseAgent(ABC):
             # if self.steps % self.save_interval == 0:
             #     self.save_models(os.path.join(self.model_dir, str(self.steps)))
 
+
         # We log running mean of training rewards.
         self.train_return.append(episode_return)
 
@@ -211,18 +238,21 @@ class BaseAgent(ABC):
             self.writer.add_scalar(
                 'reward/train', self.train_return.get(), self.steps)
 
-        print("Episode: {}, Scenario: {}, Pedestrian Speed: {:.2f}m/s, Ped_distance: {:.2f}m".format(
+
+        pbar.write("Episode: {}, Scenario: {}, Pedestrian Speed: {:.2f}m/s, Ped_distance: {:.2f}m".format(
             self.episodes, info['scenario'], info['ped_speed'], info['ped_distance']))
-        print('Goal reached: {}, Accident: {}, Nearmiss: {}'.format(goal, accident, nearmiss))
-        print('Total steps: {}, Episode steps: {}, Reward: {:.4f}'.format(self.steps, episode_steps, episode_return))
-        print("Policy; ", action_count, "Critic: ", action_count_critic, "Alpha: {:.4f}".format(self.alpha.item()))
+        pbar.write('Goal reached: {}, Accident: {}, Nearmiss: {}'.format(goal, accident, nearmiss))
+        pbar.write('Total steps: {}, Episode steps: {}, Reward: {:.4f}'.format(self.steps, episode_steps, episode_return))
+        pbar.write("Policy: {}, Critic: {}, Alpha: {:.4f}".format(action_count,action_count_critic,self.alpha.item()))
+        pbar.update()
+        pbar.close()
 
     def learn(self):
         assert hasattr(self, 'q1_optim') and hasattr(self, 'q2_optim') and\
             hasattr(self, 'policy_optim') and hasattr(self, 'alpha_optim')
 
         self.learning_steps += 1
-
+        # print("learning steps: {}, steps: {}".format(self.learning_steps, self.steps))
         if self.use_per:
             batch, weights = self.memory.sample(self.batch_size)
         else:
@@ -275,8 +305,9 @@ class BaseAgent(ABC):
         total_return = 0.0
         total_goal = 0
         print('-' * 60)
-
-        for _ in range(num_episodes):
+        pbar = trange(num_episodes, unit="episode", leave=True, position=0)
+        for ep_it in pbar:
+            pbar.set_description(f"Evaluation Phase: running episode {ep_it} of {num_episodes}")
             state = self.test_env.reset()
             episode_steps = 0
             episode_return = 0.0
@@ -302,12 +333,14 @@ class BaseAgent(ABC):
                 t[3 + action] = 1.0
                 done = done or info["accident"]
 
-            num_episodes += 1
+            # print("Evaluation episode number: {}/{}".format(ep_it,num_episodes))
+            # num_episodes += 1
             total_return += episode_return
             total_goal += int(info['goal'])
-            print("Speed: {:.2f}m/s, Dist.: {:.2f}m, Return: {:.4f}".format(
+            pbar.write("Speed: {:.2f}m/s, Dist.: {:.2f}m, Return: {:.4f}".format(
                 info['ped_speed'], info['ped_distance'], episode_return))
-            print("Goal: {}, Accident: {}, Act Dist.: {}".format(info['goal'], info['accident'], action_count))
+            pbar.write("Goal: {}, Accident: {}, Act Dist.: {}".format(info['goal'], info['accident'], action_count))
+            pbar.update()
             self.file.write("Speed: {:.2f}m/s, Dist.: {:.2f}m, Return: {:.4f}".format(
                 info['ped_speed'], info['ped_distance'], episode_return))
             self.file.write("Goal: {}, Accident: {}, Act Dist.: {}".format(
@@ -315,19 +348,19 @@ class BaseAgent(ABC):
 
             # if num_steps > self.num_eval_steps:
             #     break
-
+        pbar.close()
         mean_return = total_return / num_episodes
 
         # if mean_return > self.best_eval_score:
         if total_goal > self.best_eval_score:
             self.best_eval_score = total_goal
-            self.save_models(os.path.join(self.model_dir, 'best'))
-        self.save_models(os.path.join(self.model_dir, str(self.steps)))
+            self.save_models(os.path.join(self.log_dir, 'best_'+self.steps))
         self.writer.add_scalar(
             'reward/test', mean_return, self.steps)
+        #  understand the meaning of total_goals -> total number of times, goal was achieved
         self.writer.add_scalar(
             'reward/goal', total_goal, self.steps)
-
+        # TODO: Understand what's happening here?
         self.test_env.test_episodes = iter(self.test_env.episodes)
 
         print(f'Num steps: {self.steps:<5}  '
@@ -340,6 +373,13 @@ class BaseAgent(ABC):
     def save_models(self, save_dir):
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
+
+
+    def _clear_checkpoints(self):
+        saved_models = sorted(Path(self.model_dir).iterdir(), key=os.path.getmtime)
+        while len(saved_models) > Config.max_checkpoints:
+            x = saved_models.pop(0)
+            shutil.rmtree(x.as_posix())
 
     # def __del__(self):
     #     self.env.close()

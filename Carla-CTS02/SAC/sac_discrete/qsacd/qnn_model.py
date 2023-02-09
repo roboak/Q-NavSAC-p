@@ -104,7 +104,7 @@ class HybridQuantumQNetwork(torch.nn.Module):
     x = self.qlayer(x)
     x = self.output(x)
     elapsed_time = time.time()-st
-    print('Execution time for Q network:', elapsed_time, 'seconds')
+    # print('Execution time for Q network:', elapsed_time, 'seconds')
     return x
 
 

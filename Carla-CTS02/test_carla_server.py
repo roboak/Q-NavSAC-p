@@ -16,10 +16,10 @@ def run_server(local: bool, mode = str):
         subprocess.run(['cd /netscratch/sinha/carla && unset SDL_VIDEODRIVER && ./CarlaUE4.sh -vulkan -RenderOffscreen -nosound ' + port], shell=True)
 
 if __name__ == '__main__':
-    p = Process(target=run_server, args=(False, "train", ))
+    p = Process(target=run_server, args=(True, "train", ))
     p.start()
     time.sleep(12)
-    p = Process(target=run_server, args=(False, "test", ))
+    p = Process(target=run_server, args=(True, "test", ))
     p.start()
     time.sleep(12)
 

@@ -14,5 +14,5 @@ dueling_net: True
 num_eval_steps: 3000
 max_episode_steps: 500
 log_interval: 10
-eval_interval: 10000 # Akash: change from 10k to 20k
+eval_interval: 1000 # Akash: change from 10k to 20k
 #save_interval: 100000

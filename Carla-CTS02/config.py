@@ -98,3 +98,7 @@ class Config:
     max_grad_norm = 50
     num_steps = 500
     train_episodes = 3000
+
+    # utils_parameters
+    model_checkpointing_interval = 5000
+    max_checkpoints = 20
