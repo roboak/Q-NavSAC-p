@@ -31,7 +31,7 @@ from benchmark.scenarios.scenario import Scenario
 
 
 class GIDASBenchmark(gym.Env):
-    def __init__(self, port=Config.port, setting="normal", record=False):
+    def __init__(self, port=Config.port, mode="TRAINING", record=False):
         super(GIDASBenchmark, self).__init__()
         random.seed(100)
         self.action_space = gym.spaces.Discrete(Config.N_DISCRETE_ACTIONS)
@@ -51,8 +51,8 @@ class GIDASBenchmark(gym.Env):
         self.speed = None
         self.distance = None
         self.record = record
-        self.mode = "TRAINING"
-        self.setting = setting
+        self.mode = mode
+        # self.setting = mode
         self._max_episode_steps = 500
         self.clock = pygame.time.Clock()
 
@@ -78,20 +78,25 @@ class GIDASBenchmark(gym.Env):
         print(wld_map.name)
         wld.tick()
 
-        self.test_episodes = None
+        self.test_episodes_iter = None
         self.episodes = list()
         print(Config.scenarios)
+        # mode is set to testing only setting = "special". TODO: self.setting can be removed and replaced with self.mode
         for scenario in Config.scenarios:
-            if self.setting == "special":
-                self._get_special_scenes()
-                self.mode = "TESTING"
-                self.test_episodes = iter(self.episodes)
-            else:
+            if self.mode == "PARTIAL_TESTING":
+                self._get_scenes_for_partial_testing()
+            elif self.mode == "TESTING":
+                self._get_scenes_for_testing()
+            elif self.mode == "TRAINING":
                 for speed in np.arange(Config.ped_speed_range[0], Config.ped_speed_range[1] + 0.1, 0.1):
                     for distance in np.arange(Config.ped_distance_range[0], Config.ped_distance_range[1] + 1, 1):
                         self.episodes.append((scenario, speed, distance))
+            else:
+                raise Exception("Environemnt Configuration Error: Mode should be either TRAINING, TESTING or PARTIAL_TESTING ")
 
-    def _get_special_scenes(self):
+        self.test_episodes_iter = iter(self.episodes)
+
+    def _get_scenes_for_testing(self):
         for scenario in Config.val_scenarios:
             for speed in np.arange(Config.val_ped_speed_range[0][0], Config.val_ped_speed_range[0][1] + 0.1, 0.1):
                 for distance in np.arange(Config.val_ped_distance_range[0], Config.ped_distance_range[1] + 1, 1):
@@ -99,9 +104,14 @@ class GIDASBenchmark(gym.Env):
             for speed in np.arange(Config.val_ped_speed_range[1][0], Config.val_ped_speed_range[1][1] + 0.1, 0.1):
                 for distance in np.arange(Config.val_ped_distance_range[0], Config.ped_distance_range[1] + 1, 1):
                     self.episodes.append((scenario, speed, distance))
-        # episodes = [(scenario, 1.3, 40.0), (scenario, 1.5, 40.0), (scenario, 1.7, 36.0), (scenario, 2.0, 32.0),
-        #         #             (scenario, 1.6, 36.0), (scenario, 2.0, 25.0), (scenario, 2.8, 18.0)]
-        # self.episodes += episodes
+
+    def _get_scenes_for_partial_testing(self):
+        sample_ped_speeds = np.random.uniform(Config.val_ped_speed_range[0][0], Config.val_ped_speed_range[0][1] + 0.1, 10)
+        sample_ped_dists = np.random.uniform(Config.val_ped_distance_range[0], Config.ped_distance_range[1] + 1, 10)
+        for scenario in Config.val_scenarios:
+            for speed in sample_ped_speeds:
+                for distance in sample_ped_dists:
+                    self.episodes.append((scenario, speed, distance))
 
     def reset(self):
         scenario_id, ped_speed, ped_distance = self.next_scene()
@@ -215,11 +225,11 @@ class GIDASBenchmark(gym.Env):
                         episodes.append((scenario, speed, distance))
         self.episodes = episodes[current_episode:]
         print("Episodes: ", len(self.episodes))
-        self.test_episodes = iter(episodes[current_episode:])
+        self.test_episodes_iter = iter(episodes[current_episode:])
 
     def next_scene(self):
         if self.mode == "TRAINING":
             return random.choice(self.episodes)
-        elif self.mode == "TESTING":
-            scene_config = next(self.test_episodes)
+        elif self.mode == "TESTING" or self.mode == "PARTIAL_TESTING":
+            scene_config = next(self.test_episodes_iter)
             return scene_config

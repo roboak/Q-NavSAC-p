@@ -188,10 +188,11 @@ class SharedSacdAgent(BaseAgent):
 
         return policy_loss, entropies.detach()
 
+    # Entropy loss is used to tune alpha.
     def calc_entropy_loss(self, entropies, weights):
         assert not entropies.requires_grad
 
-        # Intuitively, we increse alpha when entropy is less than target
+        # Intuitively, we increase alpha when entropy is less than target
         # entropy, vice versa.
         entropy_loss = -torch.mean(
             self.log_alpha * (self.target_entropy - entropies)

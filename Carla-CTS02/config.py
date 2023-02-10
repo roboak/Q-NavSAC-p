@@ -100,5 +100,5 @@ class Config:
     train_episodes = 3000
 
     # utils_parameters
-    model_checkpointing_interval = 5000
+    model_checkpointing_interval = 1000
     max_checkpoints = 20

@@ -18,8 +18,8 @@ def run(args):
         config = yaml.load(f, Loader=yaml.SafeLoader)
 
     # Create environments.
-    env = GIDASBenchmark(port=Config.port)
-    test_env = GIDASBenchmark(port=Config.port + 100, setting="special")
+    env = GIDASBenchmark(port=Config.port, mode="TRAINING")
+    test_env = GIDASBenchmark(port=Config.port + 100, mode="PARTIAL_TESTING")
 
     # Specify the directory to log.
     name = args.config.split('/')[-1].rstrip('.yaml')

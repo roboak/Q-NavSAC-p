@@ -82,18 +82,18 @@ class BaseAgent(ABC):
         # self.save_interval = save_interval
 
     def run(self):
-        pbar = trange(int(self.num_steps), unit=" episode", leave=True, position=0)
-        for i in pbar:
-            pbar.set_description(f"Running step {i+1} of total_steps {int(self.num_steps)}")
-            sleep(0.05)
-            self.train_episode()
-            pbar.refresh()
-
-        pbar.close()
-        # while True:
+        # pbar = trange(int(self.num_steps), unit=" episode", leave=True, position=0)
+        # for i in pbar:
+        #     pbar.set_description(f"Running step {i+1} of total_steps {int(self.num_steps)}")
+        #     sleep(0.05)
         #     self.train_episode()
-        #     if self.steps > self.num_steps:
-        #         break
+        #     pbar.refresh()
+        #
+        # pbar.close()
+        while True:
+            self.train_episode()
+            if self.steps > self.num_steps:
+                break
 
     def is_update(self):
         return self.steps % self.update_interval == 0\
@@ -210,6 +210,7 @@ class BaseAgent(ABC):
             done = done or accident
 
             # learning happens happens after certain interval and after there is enough data
+            # Note: Learning happens multiple times in a single episode.
             if self.is_update():
                 # print("learning the model")
                 self.learn()
@@ -308,6 +309,7 @@ class BaseAgent(ABC):
         pbar = trange(num_episodes, unit="episode", leave=True, position=0)
         for ep_it in pbar:
             pbar.set_description(f"Evaluation Phase: running episode {ep_it} of {num_episodes}")
+            # get new scene. In this case, the episodes re sequentially sampled from the episodes list.
             state = self.test_env.reset()
             episode_steps = 0
             episode_return = 0.0
@@ -334,14 +336,14 @@ class BaseAgent(ABC):
                 done = done or info["accident"]
 
             # print("Evaluation episode number: {}/{}".format(ep_it,num_episodes))
-            # num_episodes += 1
+            # num_episodes += 1 #TODO: Check if this was the right thing to do??
             total_return += episode_return
             total_goal += int(info['goal'])
-            pbar.write("Speed: {:.2f}m/s, Dist.: {:.2f}m, Return: {:.4f}".format(
+            pbar.write("Ped_Speed: {:.2f}m/s, Ped_Dist.: {:.2f}m, Return: {:.4f}".format(
                 info['ped_speed'], info['ped_distance'], episode_return))
             pbar.write("Goal: {}, Accident: {}, Act Dist.: {}".format(info['goal'], info['accident'], action_count))
             pbar.update()
-            self.file.write("Speed: {:.2f}m/s, Dist.: {:.2f}m, Return: {:.4f}".format(
+            self.file.write("Ped_Speed: {:.2f}m/s, Ped_Dist.: {:.2f}m, Return: {:.4f}".format(
                 info['ped_speed'], info['ped_distance'], episode_return))
             self.file.write("Goal: {}, Accident: {}, Act Dist.: {}".format(
                 info['goal'], info['accident'], action_count))
@@ -360,8 +362,7 @@ class BaseAgent(ABC):
         #  understand the meaning of total_goals -> total number of times, goal was achieved
         self.writer.add_scalar(
             'reward/goal', total_goal, self.steps)
-        # TODO: Understand what's happening here?
-        self.test_env.test_episodes = iter(self.test_env.episodes)
+        # self.test_env.test_episodes_iter = iter(self.test_env.episodes)  #  TODO: this should not be needed as this is already happening in the environment class./
 
         print(f'Num steps: {self.steps:<5}  '
               f'return: {mean_return:<5.1f}')
