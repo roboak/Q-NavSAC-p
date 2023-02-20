@@ -225,7 +225,7 @@ class BaseAgent(ABC):
             if self.steps % self.target_update_interval == 0:
                 self.update_target()
 
-            if self.steps % self.eval_interval == 0:
+            if self.steps % self.eval_interval == 0 and self.steps > self.start_steps:
                 self.evaluate()
 
             # if self.steps % self.save_interval == 0:

@@ -69,11 +69,11 @@ if __name__ == '__main__':
     Config.port = args.port
     print('Env. port: {}'.format(Config.port))
 
-    # p = Process(target=run_server, args=(args.local, "train", ))
-    # p.start()
-    # time.sleep(12)
-    # p = Process(target=run_server, args=(args.local, "test", ))
-    # p.start()
-    # time.sleep(12)
+    p = Process(target=run_server, args=(args.local, "train", ))
+    p.start()
+    time.sleep(12)
+    p = Process(target=run_server, args=(args.local, "test", ))
+    p.start()
+    time.sleep(12)
 
     run(args)

@@ -82,17 +82,18 @@ class GIDASBenchmark(gym.Env):
         self.episodes = list()
         print(Config.scenarios)
         # mode is set to testing only setting = "special". TODO: self.setting can be removed and replaced with self.mode
-        for scenario in Config.scenarios:
-            if self.mode == "PARTIAL_TESTING":
-                self._get_scenes_for_partial_testing()
-            elif self.mode == "TESTING":
-                self._get_scenes_for_testing()
-            elif self.mode == "TRAINING":
+
+        if self.mode == "PARTIAL_TESTING":
+            self._get_scenes_for_partial_testing()
+        elif self.mode == "TESTING":
+            self._get_scenes_for_testing()
+        elif self.mode == "TRAINING":
+            for scenario in Config.scenarios:
                 for speed in np.arange(Config.ped_speed_range[0], Config.ped_speed_range[1] + 0.1, 0.1):
                     for distance in np.arange(Config.ped_distance_range[0], Config.ped_distance_range[1] + 1, 1):
                         self.episodes.append((scenario, speed, distance))
-            else:
-                raise Exception("Environemnt Configuration Error: Mode should be either TRAINING, TESTING or PARTIAL_TESTING ")
+        else:
+            raise Exception("Environemnt Configuration Error: Mode should be either TRAINING, TESTING or PARTIAL_TESTING ")
 
         self.test_episodes_iter = iter(self.episodes)
 

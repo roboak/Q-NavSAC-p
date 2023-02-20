@@ -37,7 +37,7 @@ class Config:
     test_ped_distance_range = [4.75, 49.75]
     # test_car_speed_range = [6, 9]
 
-    save_freq = 100
+    # save_freq = 100
 
     # Setting the SAC training parameters
     batch_size = 2  # 32  # How many experience traces to use for each training step.
