@@ -3,16 +3,16 @@ IMAGE=/netscratch/$USER/carla_v2_torch_pennylane_v4.sqsh
 WORKDIR="`pwd`"
 srun \
   --container-image=$IMAGE \
-  -p V100-16GB \
+  -p V100-16GB	 \
   --container-workdir=$WORKDIR\
   --container-mounts=/netscratch/$USER:/netscratch/$USER,/ds:/ds:ro,"`pwd`":"`pwd`" \
   --ntasks=1 \
-  --cpus-per-gpu=4 \
+  --cpus-per-gpu=3 \
   --gpus-per-task=1 \
   --mem=80GB \
   --export="NCCL_SOCKET_IFNAME=bond,NCCL_IB_HCA=mlx5" \
   --no-container-remap-root \
-  --job-name qsac \
+  --job-name navsac \
   --pty bash
 
 

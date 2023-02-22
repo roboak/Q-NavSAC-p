@@ -10,7 +10,7 @@ from SAC.sac_discrete.utils import disable_gradients
 
 class SharedSacdAgent(BaseAgent):
 
-    def __init__(self, env, test_env, log_dir, num_steps=100000, batch_size=64,
+    def __init__(self, env, test_env, log_dir, learning_steps, completed_steps, num_steps=100000, batch_size=64,
                  lr=0.0003, memory_size=1000000, gamma=0.99, multi_step=1,
                  target_entropy_ratio=0.98, start_steps=20000,
                  update_interval=4, target_update_interval=8000,
@@ -18,7 +18,7 @@ class SharedSacdAgent(BaseAgent):
                  max_episode_steps=27000, log_interval=10, eval_interval=1000,
                  cuda=True, seed=0, path=None):
         super().__init__(
-            env, test_env, log_dir, num_steps, batch_size, memory_size, gamma,
+            env, test_env, log_dir, learning_steps, completed_steps, num_steps, batch_size, memory_size, gamma,
             multi_step, target_entropy_ratio, start_steps, update_interval,
             target_update_interval, use_per, num_eval_steps, max_episode_steps, save_interval,
             log_interval, eval_interval, cuda, seed)
@@ -41,20 +41,24 @@ class SharedSacdAgent(BaseAgent):
         # Copy parameters of the learning network to the target network.
 
         self.createNetwork()
-        if path:
+        if path != "None":
             self.resume = True
-            self.conv.load_state_dict(torch.load(path + "conv.pth"))
-            self.policy.load_state_dict(torch.load(path + "policy.pth"))
-            self.online_critic.load_state_dict(torch.load(path + 'online_critic.pth'))
-            self.target_critic.load_state_dict(torch.load(path + 'target_critic.pth'))
+            if(str(self.device) == "cpu"):
+                self.conv.load_state_dict(torch.load(os.path.join(path, "conv.pth"), map_location=torch.device("cpu")))
+                self.policy.load_state_dict(torch.load(os.path.join(path, "policy.pth"), map_location=torch.device("cpu")))
+                self.online_critic.load_state_dict(torch.load(os.path.join(path, 'online_critic.pth'), map_location=torch.device("cpu")))
+                self.target_critic.load_state_dict(torch.load(os.path.join(path, 'target_critic.pth'), map_location=torch.device("cpu")))
+            else:
+                self.conv.load_state_dict(torch.load(os.path.join(path, "conv.pth")))
+                self.policy.load_state_dict(torch.load(os.path.join(path, "policy.pth")))
+                self.online_critic.load_state_dict(torch.load(os.path.join(path, 'online_critic.pth')))
+                self.target_critic.load_state_dict(torch.load(os.path.join(path, 'target_critic.pth')))
 
         # Disable gradient calculations of the target network.
         disable_gradients(self.target_critic)
-
-        self.policy_optim = Adam(self.policy.parameters(), lr=lr)
-        self.q1_optim = Adam(
-            list(self.conv.parameters()) +
-            list(self.online_critic.Q1.parameters()), lr=lr)
+        # policy_optimiser should update the params for Conv as well.
+        self.policy_optim = Adam(list(self.policy.parameters()) + list(self.conv.parameters()), lr=lr)
+        self.q1_optim = Adam(self.online_critic.Q1.parameters(), lr=lr)
         self.q2_optim = Adam(self.online_critic.Q2.parameters(), lr=lr)
 
         # Target entropy is -log(1/|A|) * ratio (= maximum entropy * ratio).

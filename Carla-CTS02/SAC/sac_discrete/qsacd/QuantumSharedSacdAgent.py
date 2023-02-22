@@ -12,8 +12,11 @@ class QuantumSharedSacdAgent(SharedSacdAgent):
         self.policy = CategoricalPolicy(
             self.env.observation_space.shape[2], self.env.action_space.n,
             shared=True).to(self.device)
-        #TODO: fix input_dimensions.
+        #TODO: Take input_dimensions as args from command line.
         self.online_critic = TwinnedQuantumQNetwork(input_dim=512, num_actions=self.env.action_space.n, qnn_layers=2, qnn_type="NormalVQC", device=self.device).to(device=self.device)
         self.target_critic = TwinnedQuantumQNetwork(input_dim=512, num_actions=self.env.action_space.n, qnn_layers=2, qnn_type="NormalVQC", device=self.device).to(device=self.device).eval()
+        print("DQNBase", self.conv)
+        print("Online Critic", self.online_critic)
+        print("Policy", self.policy)
 
 

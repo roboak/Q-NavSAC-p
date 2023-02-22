@@ -81,7 +81,7 @@ class GIDASBenchmark(gym.Env):
         self.test_episodes_iter = None
         self.episodes = list()
         print(Config.scenarios)
-        # mode is set to testing only setting = "special". TODO: self.setting can be removed and replaced with self.mode
+        # mode is set to testing only setting = "special".
 
         if self.mode == "PARTIAL_TESTING":
             self._get_scenes_for_partial_testing()
@@ -107,8 +107,8 @@ class GIDASBenchmark(gym.Env):
                     self.episodes.append((scenario, speed, distance))
 
     def _get_scenes_for_partial_testing(self):
-        sample_ped_speeds = np.random.uniform(Config.val_ped_speed_range[0][0], Config.val_ped_speed_range[0][1] + 0.1, 10)
-        sample_ped_dists = np.random.uniform(Config.val_ped_distance_range[0], Config.ped_distance_range[1] + 1, 10)
+        sample_ped_speeds = np.random.uniform(Config.val_ped_speed_range[0][0], Config.val_ped_speed_range[0][1] + 0.1, 3)
+        sample_ped_dists = np.random.uniform(Config.val_ped_distance_range[0], Config.ped_distance_range[1] + 1, 3)
         for scenario in Config.val_scenarios:
             for speed in sample_ped_speeds:
                 for distance in sample_ped_dists:
@@ -171,7 +171,7 @@ class GIDASBenchmark(gym.Env):
         reward, goal, accident, near_miss, terminal = self.planner_agent.get_reward(action)
         info = {"goal": goal, "accident": accident, "near miss": near_miss,
                 "velocity": self.planner_agent.vehicle.get_velocity(), "risk": risk,
-                "scenario": self.scenario, "ped_speed": self.speed, "ped_distance": self.distance}
+                "scenario": self.scenario, "ped_speed": self.speed, "ped_distance": self.distance, "scenario_id": self.scenario}
 
         if self.mode == "TESTING":
             terminal = goal
@@ -192,25 +192,6 @@ class GIDASBenchmark(gym.Env):
         pygame.quit()
 
     def reset_agent(self, agent):
-        # if agent == 'reactive':
-        #     self.planner_agent = ReactiveController(self.world, self.map, self.scene)
-        # if agent == 'isdespot':
-        #     conn = Connector(Config.despot_port)
-        #     self.planner_agent = ISDespotP(self.world, self.map, self.scene, conn)
-        # if agent == 'hyleap':
-        #     conn = Connector(Config.despot_port)
-        #     self.planner_agent = HyLEAP(self.world, self.map, self.scene, conn)
-        # if agent == 'isdespot*':
-        #     conn = Connector(Config.despot_port)
-        #     self.planner_agent = ISDespotPStar(self.world, self.map, self.scene, conn)
-        # if agent == 'cadrl':
-        #     self.planner_agent = A2CCadrl(self.world, self.map, self.scene)
-        # if agent == 'hylear' or agent == 'hypal':
-        #     conn = Connector(Config.despot_port)
-        #     eval_mode = False
-        #     if self.mode == "TESTING":
-        #         eval_mode = True
-        #     self.planner_agent = HyLEAR(self.world, self.map, self.scene, conn, eval_mode, agent)
         self.planner_agent = agent
 
     def eval(self, current_episode=0):

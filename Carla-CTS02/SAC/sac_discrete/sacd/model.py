@@ -43,7 +43,7 @@ class DQNBase(BaseNetwork):
         ).apply(initialize_weights_he)
 
         self.dim_reduction = nn.Sequential(
-                nn.Linear(46 * 46 * 64 + 6, 512), # TODO: Identify how are these numbers coming
+                nn.Linear(46 * 46 * 64 + 6, 512),
                 nn.ReLU(inplace=True))
 
     def forward(self, states):
@@ -55,7 +55,6 @@ class DQNBase(BaseNetwork):
         out = self.dim_reduction(out)
         return out
 
-# TODO: Create quantum Q network
 class QNetwork(BaseNetwork):
 
     def __init__(self, num_channels, num_actions, shared=False,
@@ -64,7 +63,7 @@ class QNetwork(BaseNetwork):
 
         # self.conv = DQNBase(num_channels)
         # self.head = nn.Sequential(
-        #         nn.Linear(46 * 46 * 64 + 6, 512), # TODO: Identify how are these numbers coming
+        #         nn.Linear(46 * 46 * 64 + 6, 512),
         #         nn.ReLU(inplace=True),
         #         nn.Linear(512, num_actions))
 

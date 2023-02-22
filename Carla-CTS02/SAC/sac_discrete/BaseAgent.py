@@ -11,10 +11,10 @@ from SAC.sac_discrete.memory import LazyMultiStepMemory, LazyPrioritizedMultiSte
 from SAC.sac_discrete.utils import update_params, RunningMeanStats
 from config import Config
 from tqdm.auto import trange
-# update_interval: network is trained after every 4 episodes.
+# update_interval: network is trained after every 4 steps in an episode
 class BaseAgent(ABC):
     # TODO: Identify what is per
-    def __init__(self, env, test_env, log_dir, num_steps=100000, batch_size=64,
+    def __init__(self, env, test_env, log_dir, learning_steps, completed_steps, num_steps=100000, batch_size=64,
                  memory_size=1000000, gamma=0.99, multi_step=1,
                  target_entropy_ratio=0.98, start_steps=20000,
                  update_interval=4, target_update_interval=8000,
@@ -64,7 +64,8 @@ class BaseAgent(ABC):
         self.train_return = RunningMeanStats(log_interval)
 
         self.steps = 0
-        self.learning_steps = 0
+        self.learning_steps = learning_steps
+        self.completed_steps = completed_steps
         self.episodes = 0
         self.best_eval_score = -np.inf
         self.num_steps = num_steps
@@ -209,14 +210,15 @@ class BaseAgent(ABC):
             goal = info['goal']
             done = done or accident
 
-            # learning happens happens after certain interval and after there is enough data
+            # learning happens happens after certain interval and after there is enough data(after steps>start_steps)
             # Note: Learning happens multiple times in a single episode.
+
             if self.is_update():
                 # print("learning the model")
                 self.learn()
-                # checkpointing the model after every 5000 steps
-                if(self.steps % Config.model_checkpointing_interval == 0):
-                    self.save_models(os.path.join(self.model_dir, str(self.steps)))
+                # checkpointing the model after every Config.model_checkpointing_interval steps
+                if(self.learning_steps % Config.model_checkpointing_interval == 0):
+                    self.save_models(os.path.join(self.model_dir, str(self.learning_steps)+'_'+str(self.completed_steps+self.steps)))
                     self._clear_checkpoints()
 
             # else:
@@ -225,8 +227,11 @@ class BaseAgent(ABC):
             if self.steps % self.target_update_interval == 0:
                 self.update_target()
 
-            if self.steps % self.eval_interval == 0 and self.steps > self.start_steps:
-                self.evaluate()
+            if self.steps % self.eval_interval == 0:
+                if self.steps > self.start_steps:
+                    self.evaluate()
+
+
 
             # if self.steps % self.save_interval == 0:
             #     self.save_models(os.path.join(self.model_dir, str(self.steps)))
@@ -237,7 +242,7 @@ class BaseAgent(ABC):
 
         if self.episodes % self.log_interval == 0:
             self.writer.add_scalar(
-                'reward/train', self.train_return.get(), self.steps)
+                'reward/train', self.train_return.get(), self.completed_steps+self.steps)
 
 
         pbar.write("Episode: {}, Scenario: {}, Pedestrian Speed: {:.2f}m/s, Ped_distance: {:.2f}m".format(
@@ -339,7 +344,7 @@ class BaseAgent(ABC):
             # num_episodes += 1 #TODO: Check if this was the right thing to do??
             total_return += episode_return
             total_goal += int(info['goal'])
-            pbar.write("Ped_Speed: {:.2f}m/s, Ped_Dist.: {:.2f}m, Return: {:.4f}".format(
+            pbar.write("Scenario_Id: {}, Ped_Speed: {:.2f}m/s, Ped_Dist.: {:.2f}m, Return: {:.4f}".format(info['scenario_id'],
                 info['ped_speed'], info['ped_distance'], episode_return))
             pbar.write("Goal: {}, Accident: {}, Act Dist.: {}".format(info['goal'], info['accident'], action_count))
             pbar.update()
@@ -356,13 +361,13 @@ class BaseAgent(ABC):
         # if mean_return > self.best_eval_score:
         if total_goal > self.best_eval_score:
             self.best_eval_score = total_goal
-            self.save_models(os.path.join(self.log_dir, 'best_'+self.steps))
+            self.save_models(os.path.join(os.path.join(self.log_dir, 'best'), str(self.learning_steps)+'_'+str(self.steps)))
         self.writer.add_scalar(
             'reward/test', mean_return, self.steps)
         #  understand the meaning of total_goals -> total number of times, goal was achieved
         self.writer.add_scalar(
             'reward/goal', total_goal, self.steps)
-        # self.test_env.test_episodes_iter = iter(self.test_env.episodes)  #  TODO: this should not be needed as this is already happening in the environment class./
+        self.test_env.test_episodes_iter = iter(self.test_env.episodes)  #  This is done to initialise the iterator after each evaluation step.
 
         print(f'Num steps: {self.steps:<5}  '
               f'return: {mean_return:<5.1f}')
