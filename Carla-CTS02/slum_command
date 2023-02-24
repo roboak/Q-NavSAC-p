@@ -1,9 +1,9 @@
 username="$USER"
-IMAGE=/netscratch/$USER/carla_v2_torch_pennylane_v4.sqsh
+IMAGE=/netscratch/$USER/vanilla.sqsh
 WORKDIR="`pwd`"
 srun \
   --container-image=$IMAGE \
-  -p V100-16GB	 \
+  -p V100-32GB	 \
   --container-workdir=$WORKDIR\
   --container-mounts=/netscratch/$USER:/netscratch/$USER,/ds:/ds:ro,"`pwd`":"`pwd`" \
   --ntasks=1 \
@@ -12,7 +12,7 @@ srun \
   --mem=80GB \
   --export="NCCL_SOCKET_IFNAME=bond,NCCL_IB_HCA=mlx5" \
   --no-container-remap-root \
-  --job-name navsac \
+  --job-name qsac_scenario1_bs1024 \
   --pty bash
 
 
@@ -26,3 +26,7 @@ srun \
 
 
   --container-save=/netscratch/$USER/carla_v2_torch_pennylane_v4.sqsh \
+
+
+
+

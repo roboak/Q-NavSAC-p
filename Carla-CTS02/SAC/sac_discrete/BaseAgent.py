@@ -171,7 +171,8 @@ class BaseAgent(ABC):
                 if self.resume:
                     action, critic_action = self.explore((state, t))
                 else:
-                    action = self.env.action_space.sample()
+                    # Code Modification - Have more actions for acceleration than braking and maintain speed in the beginning.
+                    action = np.random.choice([0,1,2],p=[0.5,0.3,0.2])
                     critic_action = action
             else:
                 action, critic_action = self.explore((state, t))
@@ -297,6 +298,7 @@ class BaseAgent(ABC):
             self.writer.add_scalar(
                 'stats/alpha', self.alpha.detach().item(),
                 self.learning_steps)
+            # TODO: What's the intent behind plotting mean_Q1 and mean_Q2 ?
             self.writer.add_scalar(
                 'stats/mean_Q1', mean_q1, self.learning_steps)
             self.writer.add_scalar(
@@ -363,10 +365,10 @@ class BaseAgent(ABC):
             self.best_eval_score = total_goal
             self.save_models(os.path.join(os.path.join(self.log_dir, 'best'), str(self.learning_steps)+'_'+str(self.steps)))
         self.writer.add_scalar(
-            'reward/test', mean_return, self.steps)
+            'reward/test', mean_return, self.completed_steps + self.steps)
         #  understand the meaning of total_goals -> total number of times, goal was achieved
         self.writer.add_scalar(
-            'reward/goal', total_goal, self.steps)
+            'reward/goal', total_goal, self.completed_steps + self.steps)
         self.test_env.test_episodes_iter = iter(self.test_env.episodes)  #  This is done to initialise the iterator after each evaluation step.
 
         print(f'Num steps: {self.steps:<5}  '

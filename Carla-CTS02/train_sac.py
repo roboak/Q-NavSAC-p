@@ -52,12 +52,12 @@ def run(args):
     agent.run()
 
 
-def run_server(local: bool, mode = str):
+def run_server(local: bool, mode = str, port=int):
     # train environment
     if mode == "train":
-        port = "-carla-port={}".format(2000)
+        port = "-carla-port={}".format(port)
     else:
-        port = "-carla-port={}".format(2100)
+        port = "-carla-port={}".format(port+100)
     if local:
         print("executing locally")
         subprocess.run("cd D:/CARLA_0.9.13/WindowsNoEditor && CarlaUE4.exe " + port, shell=True)
@@ -81,10 +81,10 @@ if __name__ == '__main__':
     Config.port = args.port
     print('Env. port: {}'.format(Config.port))
     if (not args.local):
-        p = Process(target=run_server, args=(args.local, "train", ))
+        p = Process(target=run_server, args=(args.local, "train", args.port,))
         p.start()
         time.sleep(12)
-        p = Process(target=run_server, args=(args.local, "test", ))
+        p = Process(target=run_server, args=(args.local, "test", args.port, ))
         p.start()
         time.sleep(12)
 

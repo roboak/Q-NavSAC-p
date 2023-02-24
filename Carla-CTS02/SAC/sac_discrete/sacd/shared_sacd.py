@@ -188,6 +188,7 @@ class SharedSacdAgent(BaseAgent):
 
         # Policy objective is maximization of (Q + alpha * entropy) with
         # priority weights.
+        # maximising -> policy_loss  = minimising -> -1*policy_loss
         policy_loss = (weights * (- q - self.alpha * entropies)).mean()
 
         return policy_loss, entropies.detach()

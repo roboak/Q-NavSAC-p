@@ -16,3 +16,7 @@ max_episode_steps: 500
 log_interval: 10
 eval_interval: 10000 # Akash: change from 10k to 20k
 #save_interval: 100000
+
+# TODO: Change batch size. Suggestion is to increase the batch size: The idea behind this is that with small batches
+#  and complex envs, it's easy for your learner to end up with a batch that represents some weird idiosyncratic part of the problem.
+#  Big batches do a lot to suppress this.
