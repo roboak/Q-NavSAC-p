@@ -365,10 +365,7 @@ class RLAgent(Agent):
         # assert car_intention.shape[0] == 3
 
 
-        # cv2.namedWindow(winname='CarIntention')
-        #
-        # cv2.imshow('CarIntention', car_intention)
-        # cv2.waitKey(1)
+
 
         return car_intention
 

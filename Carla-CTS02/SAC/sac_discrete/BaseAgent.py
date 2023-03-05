@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import torch
 from torch.utils.tensorboard import SummaryWriter
-
+import cv2
 from SAC.sac_discrete.memory import LazyMultiStepMemory, LazyPrioritizedMultiStepMemory
 from SAC.sac_discrete.utils import update_params, RunningMeanStats
 from config import Config
@@ -18,7 +18,7 @@ class BaseAgent(ABC):
                  memory_size=1000000, gamma=0.99, multi_step=1,
                  target_entropy_ratio=0.98, start_steps=20000,
                  update_interval=4, target_update_interval=8000,
-                 use_per=False, num_eval_steps=125000, max_episode_steps=500, save_interval=100000,
+                 use_per=False, num_eval_steps=125000, max_episode_steps=500,
                  log_interval=10, eval_interval=1000, cuda=True, seed=0, display=False, resume=False):
         super().__init__()
         self.env = env
@@ -161,8 +161,7 @@ class BaseAgent(ABC):
 
         # while (not done) and episode_steps < self.max_episode_steps:
             if(done):break
-            if self.display:
-                self.env.render()
+
 
             #get action corresponding to state = state
             #sample random actions until steps < start_steps or in other words the mnodel is used to sample actions
@@ -172,7 +171,7 @@ class BaseAgent(ABC):
                     action, critic_action = self.explore((state, t))
                 else:
                     # Code Modification - Have more actions for acceleration than braking and maintain speed in the beginning.
-                    action = np.random.choice([0,1,2],p=[0.5,0.3,0.2])
+                    action = np.random.choice([0,1,2],p=[0.8,0.1,0.1])
                     critic_action = action
             else:
                 action, critic_action = self.explore((state, t))
@@ -232,11 +231,11 @@ class BaseAgent(ABC):
                 if self.steps > self.start_steps:
                     self.evaluate()
 
-
-
-            # if self.steps % self.save_interval == 0:
-            #     self.save_models(os.path.join(self.model_dir, str(self.steps)))
-
+            if self.display:
+                self.env.render()
+                cv2.namedWindow(winname='CarIntention')
+                cv2.imshow('CarIntention', state)
+                cv2.waitKey(1)
 
         # We log running mean of training rewards.
         self.train_return.append(episode_return)
@@ -253,6 +252,7 @@ class BaseAgent(ABC):
         pbar.write("Policy: {}, Critic: {}, Alpha: {:.4f}".format(action_count,action_count_critic,self.alpha.item()))
         pbar.update()
         pbar.close()
+
 
     def learn(self):
         assert hasattr(self, 'q1_optim') and hasattr(self, 'q2_optim') and\

@@ -26,10 +26,10 @@ class Config:
     ped_distance_range = [0, 40]
     # car_speed_range = [6, 9]
     # scenarios = ['01', '02', '03', '04', '05', '06', '07', '08', '09']
-    scenarios = ['01']
+    scenarios = ['12']
 
     # val_scenarios = ['01', '02', '03', '04', '05', '06', '07', '08', '09']
-    val_scenarios = ['01']
+    val_scenarios = ['09']
     val_ped_speed_range = ([0.2, 0.5], [2.1, 2.8])
     val_ped_distance_range = [4.25, 49.25]
     # val_car_speed_range = [6, 9]
@@ -44,19 +44,6 @@ class Config:
     # save_freq = 100
 
     # Setting the SAC training parameters
-    batch_size = 2  # 32  # How many experience traces to use for each training step.
-    update_freq = 4  # How often to perform a training step after each episode.
-    load_model = True  # Whether to load a saved model.
-    path = "_out/sac/"  # The path to save our model to.
-    total_training_steps = 1000001
-    automatic_entropy_tuning = False
-    target_update_interval = 1
-    hidden_size = 256
-    max_epLength = 500  # The max allowed length of our episode.
-    sac_gamma = 0.99
-    sac_tau = 0.005
-    sac_lr = 0.00001
-    sac_alpha = 0.1
     num_pedestrians = 4
     num_angles = 5
     num_actions = 3  # num_angles * 3  # acceleration_type
@@ -80,7 +67,8 @@ class Config:
     port = 2000
     width = 1280
     height = 720
-    display = False
+    # TODO: remove it from here to commmand line parameter
+    display = True
     filter = 'vehicle.audi.tt'
     rolename = 'hero'
     gama = 1.7

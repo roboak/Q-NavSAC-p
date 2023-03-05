@@ -2,7 +2,9 @@
 Author: Dikshant Gupta
 Time: 13.12.21 11:31
 """
+import os
 
+import cv2
 import numpy as np
 import torch
 from datetime import datetime
@@ -20,34 +22,34 @@ class EvalSacdAgent(BaseAgent):
                  lr=0.0003, memory_size=1000000, gamma=0.99, multi_step=1,
                  target_entropy_ratio=0.98, start_steps=20000,
                  update_interval=4, target_update_interval=8000,
-                 use_per=False, dueling_net=False, num_eval_steps=125000, save_interval=100000,
+                 use_per=False, num_eval_steps=125000, save_interval=100000,
                  max_episode_steps=27000, log_interval=10, eval_interval=1000,
                  cuda=True, seed=0, current_episode=0, agent="hypal"):
+        learning_steps = 0
+        completed_steps = 0
+        display = True
         super().__init__(
-            env, test_env, log_dir, num_steps, batch_size, memory_size, gamma,
+            env, test_env, log_dir, learning_steps, completed_steps, num_steps, batch_size, memory_size, gamma,
             multi_step, target_entropy_ratio, start_steps, update_interval,
-            target_update_interval, use_per, num_eval_steps, max_episode_steps, save_interval,
-            log_interval, eval_interval, cuda, seed)
+            target_update_interval, use_per, num_eval_steps, max_episode_steps,
+            log_interval, eval_interval, cuda, seed, display=display)
 
-        # Define networks.
+        # Define networks. We don't need critics at the timen of evaluation
         self.conv = DQNBase(
             self.env.observation_space.shape[2]).to(self.device)
         self.policy = CategoricalPolicy(
             self.env.observation_space.shape[2], self.env.action_space.n,
             shared=True).to(self.device)
-        # self.online_critic = TwinnedQNetwork(
-        #     self.env.observation_space.shape[2], self.env.action_space.n,
-        #     dueling_net=dueling_net, shared=True).to(device=self.device)
-        # self.target_critic = TwinnedQNetwork(
-        #     self.env.observation_space.shape[2], self.env.action_space.n,
-        #     dueling_net=dueling_net, shared=True).to(device=self.device).eval()
-        #
-        # # Copy parameters of the learning network to the target network.
-        # self.target_critic.load_state_dict(self.online_critic.state_dict())
 
-        path = "_out/GIDASBenchmark/summary/best/"
-        self.conv.load_state_dict(torch.load(path + "conv.pth"))
-        self.policy.load_state_dict(torch.load(path + "policy.pth"))
+
+        path = r"D:\Cluster_out_Q-NavSACp\Experiments\NavSACp_bs_1024_scenario_01\sacd-seed0-20230224-1738\best\30187_140000"
+        if (str(self.device) == "cpu"):
+            self.conv.load_state_dict(torch.load(os.path.join(path, "conv.pth"), map_location=torch.device("cpu")))
+            self.policy.load_state_dict(torch.load(os.path.join(path, "policy.pth"), map_location=torch.device("cpu")))
+        else:
+            self.conv.load_state_dict(torch.load(os.path.join(path, "conv.pth")))
+            self.policy.load_state_dict(torch.load(os.path.join(path, "policy.pth")))
+
         self.conv.eval()
         self.policy.eval()
 
@@ -90,8 +92,12 @@ class EvalSacdAgent(BaseAgent):
             while (not done) and episode_steps < self.max_episode_steps:
                 trajectory.append((self.test_env.world.player.get_location().x,
                                    self.test_env.world.player.get_location().y))
+                # TODO: Change this to accept input from command line
                 if Config.display:
                     self.test_env.render()
+                    cv2.namedWindow(winname='CarIntention')
+                    cv2.imshow('CarIntention', state)
+                    cv2.waitKey(1)
 
                 start_time = time.time()
                 action = self.exploit((state, t))
@@ -120,7 +126,7 @@ class EvalSacdAgent(BaseAgent):
                 speed = np.sqrt(info['velocity'].x ** 2 + info['velocity'].y ** 2)
                 impact_speed.append(speed)
                 risk.append(info['risk'])
-                ped_obs.append(info['ped_observable'])
+                # ped_obs.append(info['ped_observable']) TODO: Figure out what's ped_observable
 
             num_episodes += 1
             total_return += episode_return
@@ -138,7 +144,7 @@ class EvalSacdAgent(BaseAgent):
             episode_log['crash'] = info['accident']
             episode_log['nearmiss'] = nearmiss
             episode_log['goal'] = info['goal']
-            episode_log['ped_observable'] = ped_obs
+            # episode_log['ped_observable'] = ped_obs
             data_log[num_episodes] = episode_log
 
             print("Episode: {}, Scenario: {}, Pedestrian Speed: {:.2f}m/s, Ped_distance: {:.2f}m".format(
@@ -162,8 +168,8 @@ class EvalSacdAgent(BaseAgent):
         state = torch.ByteTensor(state[None, ...]).to(self.device).float() / 255.
         t = torch.FloatTensor(t[None, ...]).to(self.device)
         with torch.no_grad():
-            state = self.conv(state)
-            state = torch.cat([state, t], dim=1)
+            state = self.conv((state, t))
+            # state = torch.cat([state, t], dim=1)
             action = self.policy.act(state)
         return action.item()
 

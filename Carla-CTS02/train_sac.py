@@ -47,6 +47,7 @@ def run(args):
     config['log_dir'] = log_dir
     config['cuda'] = args.cuda
     config['seed'] = args.seed
+    config['display'] = args.display
     Agent = QuantumSharedSacdAgent if args.qsac else SharedSacdAgent
     agent = Agent(**config)
     agent.run()
@@ -63,7 +64,7 @@ def run_server(local: bool, mode = str, port=int):
         subprocess.run("cd D:/CARLA_0.9.13/WindowsNoEditor && CarlaUE4.exe " + port, shell=True)
     else:
         print("executing on slurm cluster")
-        subprocess.run(['cd /netscratch/sinha/carla && unset SDL_VIDEODRIVER && ./CarlaUE4.sh -vulkan -RenderOffscreen -nosound ' + port], shell=True)
+        subprocess.run(['cd /netscratch/sinha/carla && unset SDL_VIDEODRIVER && ./CarlaUE4.sh -vulkan -RenderOffscreen -nosound -quality-level=Low ' + port], shell=True)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -76,6 +77,9 @@ if __name__ == '__main__':
     parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--port', type=int, default=2000)
     parser.add_argument('--path', type=Path, default=None)
+    parser.add_argument('--input_data_dim', type=int, default=512)
+    parser.add_argument('--display', action='store_true')
+
     args = parser.parse_args()
 
     Config.port = args.port

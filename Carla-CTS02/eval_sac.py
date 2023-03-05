@@ -22,7 +22,7 @@ def run(args):
         config = yaml.load(f, Loader=yaml.SafeLoader)
 
     # Create environments.
-    env = GIDASBenchmark(port=Config.port)
+    env = GIDASBenchmark(port=Config.port, mode = "TESTING")
     env.eval(current_episode=args.episode)
 
     # Specify the directory to log.
@@ -31,7 +31,7 @@ def run(args):
         name = 'shared-' + name
     time = datetime.now().strftime("%Y%m%d-%H%M")
     log_dir = os.path.join(
-        '_out', args.env_id, 'eval', f'{name}-seed{args.seed}-{time}')
+        '_out', 'eval', f'{name}-seed{args.seed}-{time}')
 
     # Create the agent.
     agent = EvalSacdAgent(
