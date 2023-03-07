@@ -23,22 +23,6 @@ class SharedSacdAgent(BaseAgent):
             target_update_interval, use_per, num_eval_steps, max_episode_steps,
             log_interval, eval_interval, cuda, seed, display=display)
 
-
-        # # Define networks.
-        # self.conv = DQNBase(
-        #     self.env.observation_space.shape[2]).to(self.device)
-        # self.policy = CateoricalPolicy(
-        #     self.env.observation_space.shape[2], self.env.action_space.n,
-        #     shared=True).to(self.device)
-        # self.online_critic = TwinnedQNetwork(
-        #     self.env.observation_space.shape[2], self.env.action_space.n,
-        #     dueling_net=dueling_net, shared=True).to(device=self.device)
-        # self.target_critic = TwinnedQNetwork(
-        #     self.env.observation_space.shape[2], self.env.action_space.n,
-        #     dueling_net=dueling_net, shared=True).to(device=self.device).eval()
-
-        # Copy parameters of the learning network to the target network.
-
         self.createNetwork()
         if path != "None":
             self.resume = True
@@ -67,7 +51,7 @@ class SharedSacdAgent(BaseAgent):
         # We optimize log(alpha), instead of alpha.
         self.log_alpha = torch.zeros(1, requires_grad=True, device=self.device)
         self.alpha = self.log_alpha.exp()
-        self.alpha_optim = Adam([self.log_alpha], lr=lr)
+        self.alpha_optim = Adam([self.log_alpha], lr=lr) # Testing with reduced learning rate for alpha to increase it's exploration capability.
 
     def createNetwork(self):
         self.conv = DQNBase(
@@ -126,6 +110,7 @@ class SharedSacdAgent(BaseAgent):
         curr_q1 = self.online_critic.Q1(states).gather(1, actions.long())
         curr_q2 = self.online_critic.Q2(states.detach()).gather(1, actions.long())
         #  these are the values corresponding to (s,a) stored in the replay buffer
+        #  -> output = batch_size x 1 (storing the Q value of the action in reply buffer corresponding to s)
         return curr_q1, curr_q2
 
     def calc_target_q(self, states, actions, rewards, next_states, dones):
@@ -142,7 +127,9 @@ class SharedSacdAgent(BaseAgent):
         assert rewards.shape == next_q.shape
         return rewards + (1.0 - dones) * self.gamma_n * next_q
 
+    # weights_dim = 128x1
     def calc_critic_loss(self, batch, weights):
+        # curr_q1 is the Q value of (s,a) in replay buffer; dim = 128 x 1
         curr_q1, curr_q2 = self.calc_current_q(*batch)
         target_q = self.calc_target_q(*batch)
 
@@ -150,6 +137,7 @@ class SharedSacdAgent(BaseAgent):
         errors = torch.abs(curr_q1.detach() - target_q)
 
         # We log means of Q to monitor training.
+        # Mean of All q bvalues in the batch: (batch_size x 1) -> 1x1
         mean_q1 = curr_q1.detach().mean().item()
         mean_q2 = curr_q2.detach().mean().item()
 

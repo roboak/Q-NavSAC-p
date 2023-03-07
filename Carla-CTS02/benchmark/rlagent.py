@@ -130,6 +130,11 @@ class RLAgent(Agent):
     def linmap(self, a, b, c, d, x):
         return (x - a) / (b - a) * (d - c) + c
 
+    '''
+    pedestrian_hit - speed with which the pedestrian was hit
+    near_miss
+    
+    '''
     def get_reward(self, action):
         reward = 0
         goal = False
@@ -158,7 +163,7 @@ class RLAgent(Agent):
                 # if collision_reward >= 700:
                 #     terminal = True
                 reward -= collision_reward
-
+        #TODO: How are these numbers calculated?
         reward -= pow(goal_dist / 4935.0, 0.8) * 1.2
 
         # All grid positions of incoming_car in player rectangle
@@ -208,7 +213,7 @@ class RLAgent(Agent):
         else: last_action = 1
         if last_action != 1 and last_action != action:
             reward -= 0.05
-
+        # TODO: Penalisation becuase of steering angle seems unfair to me.
         reward -= pow(abs(self.prev_action.steer), 1.3) / 2.0
 
         if goal_dist < 3:

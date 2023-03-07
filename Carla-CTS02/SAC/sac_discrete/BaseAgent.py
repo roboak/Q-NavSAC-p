@@ -242,7 +242,7 @@ class BaseAgent(ABC):
 
         if self.episodes % self.log_interval == 0:
             self.writer.add_scalar(
-                'reward/train', self.train_return.get(), self.completed_steps+self.steps)
+                'reward/return_train', self.train_return.get(), self.completed_steps+self.steps)
 
 
         pbar.write("Episode: {}, Scenario: {}, Pedestrian Speed: {:.2f}m/s, Ped_distance: {:.2f}m".format(
@@ -298,7 +298,6 @@ class BaseAgent(ABC):
             self.writer.add_scalar(
                 'stats/alpha', self.alpha.detach().item(),
                 self.learning_steps)
-            # TODO: What's the intent behind plotting mean_Q1 and mean_Q2 ?
             self.writer.add_scalar(
                 'stats/mean_Q1', mean_q1, self.learning_steps)
             self.writer.add_scalar(
@@ -365,10 +364,10 @@ class BaseAgent(ABC):
             self.best_eval_score = total_goal
             self.save_models(os.path.join(os.path.join(self.log_dir, 'best'), str(self.learning_steps)+'_'+str(self.steps)))
         self.writer.add_scalar(
-            'reward/test', mean_return, self.completed_steps + self.steps)
+            'reward/return_eval', mean_return, self.completed_steps + self.steps)
         #  understand the meaning of total_goals -> total number of times, goal was achieved
         self.writer.add_scalar(
-            'reward/goal', total_goal, self.completed_steps + self.steps)
+            'reward/goal_eval', total_goal, self.completed_steps + self.steps)
         self.test_env.test_episodes_iter = iter(self.test_env.episodes)  #  This is done to initialise the iterator after each evaluation step.
 
         print(f'Num steps: {self.steps:<5}  '

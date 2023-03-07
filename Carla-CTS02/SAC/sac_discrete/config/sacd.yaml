@@ -4,7 +4,7 @@ lr: 0.00005
 memory_size: 60000
 gamma: 0.99
 multi_step: 1
-target_entropy_ratio: 0.6
+target_entropy_ratio: 0.2
 #start_steps: 25000
 start_steps: 25000
 update_interval: 4

@@ -9,10 +9,10 @@ srun \
   --ntasks=1 \
   --cpus-per-gpu=3 \
   --gpus-per-task=1 \
-  --mem=80GB \
+  --mem=100GB \
   --export="NCCL_SOCKET_IFNAME=bond,NCCL_IB_HCA=mlx5" \
   --no-container-remap-root \
-  --job-name qsac_scenario1_bs1024 \
+  --job-name NavSACp_bs_128_scenario_01_camera_fix_red-lr-alpha \
   --pty bash
 
 
