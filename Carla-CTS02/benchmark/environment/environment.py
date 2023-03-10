@@ -168,7 +168,7 @@ class GIDASBenchmark(gym.Env):
                 im.save("_out/recordings/frame_{:03d}.png".format(frame_num))
 
         observation, risk = self._get_observation()
-        reward, goal, accident, near_miss, terminal = self.planner_agent.get_reward(action)
+        reward, goal, accident, near_miss, terminal = self.planner_agent.get_reward_akash(action)
         info = {"goal": goal, "accident": accident, "near miss": near_miss,
                 "velocity": self.planner_agent.vehicle.get_velocity(), "risk": risk,
                 "scenario": self.scenario, "ped_speed": self.speed, "ped_distance": self.distance, "scenario_id": self.scenario}

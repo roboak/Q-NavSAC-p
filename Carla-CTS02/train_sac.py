@@ -48,6 +48,7 @@ def run(args):
     config['cuda'] = args.cuda
     config['seed'] = args.seed
     config['display'] = args.display
+    config['tes'] = args.tes
     Agent = QuantumSharedSacdAgent if args.qsac else SharedSacdAgent
     agent = Agent(**config)
     agent.run()
@@ -79,7 +80,8 @@ if __name__ == '__main__':
     parser.add_argument('--path', type=Path, default=None)
     parser.add_argument('--input_data_dim', type=int, default=512)
     parser.add_argument('--display', action='store_true')
-
+    # tes: taregt entropy scheduler: Ref: https://arxiv.org/pdf/2112.02852.pdf
+    parser.add_argument('--tes', action='store_true')
     args = parser.parse_args()
 
     Config.port = args.port

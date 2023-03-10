@@ -1,12 +1,12 @@
 num_steps: 3000000
-batch_size: 128
+batch_size: 512
 lr: 0.00005
 memory_size: 60000
 gamma: 0.99
 multi_step: 1
 target_entropy_ratio: 0.2
 #start_steps: 25000
-start_steps: 25000
+start_steps: 30000
 update_interval: 4
 target_update_interval: 3000
 use_per: True
@@ -14,7 +14,6 @@ num_eval_steps: 3000
 max_episode_steps: 500
 log_interval: 10
 eval_interval: 10000 # Akash: change from 10k to 20k
-#save_interval: 100000
 
 # TODO: Change batch size. Suggestion is to increase the batch size: The idea behind this is that with small batches
 #  and complex envs, it's easy for your learner to end up with a batch that represents some weird idiosyncratic part of the problem.

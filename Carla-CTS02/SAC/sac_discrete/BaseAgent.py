@@ -36,6 +36,7 @@ class BaseAgent(ABC):
 
         self.device = torch.device(
             "cuda" if cuda and torch.cuda.is_available() else "cpu")
+        print(self.device, " being used")
 
         # LazyMemory efficiently stores FrameStacked states.
         if use_per:
@@ -132,6 +133,9 @@ class BaseAgent(ABC):
     def calc_entropy_loss(self, entropies, weights):
         pass
 
+    @abstractmethod
+    def get_target_entropy(self):
+        pass
     ## Rresponsible for executing a single epoisode  and storing the episode in replay buffer
     def train_episode(self):
         self.episodes += 1
@@ -305,6 +309,10 @@ class BaseAgent(ABC):
             self.writer.add_scalar(
                 'stats/entropy', entropies.detach().mean().item(),
                 self.learning_steps)
+            self.writer.add_scalar(
+                'stats/target_entropy', self.get_target_entropy().item(),
+                self.learning_steps)
+
 
     def evaluate(self):
         num_episodes = len(self.test_env.episodes)

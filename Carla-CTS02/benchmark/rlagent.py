@@ -130,11 +130,87 @@ class RLAgent(Agent):
     def linmap(self, a, b, c, d, x):
         return (x - a) / (b - a) * (d - c) + c
 
-    '''
-    pedestrian_hit - speed with which the pedestrian was hit
-    near_miss
-    
-    '''
+
+    def get_reward_akash(self, action):
+        reward = 0
+        goal = False
+        terminal = False
+        # TODO: To be moved to config if this works
+        hit_penalty = 100
+
+        velocity = self.vehicle.get_velocity()
+        speed = pow(velocity.x * velocity.x + velocity.y * velocity.y, 0.5) * 3.6  # in kmph
+        transform = self.vehicle.get_transform()
+        start = (self.vehicle.get_location().x, self.vehicle.get_location().y, transform.rotation.yaw)
+        walker_x, walker_y = self.world.walker.get_location().x, self.world.walker.get_location().y
+        end = self.scenario[2]
+        goal_dist = np.sqrt((start[0] - end[0]) ** 2 + (start[1] - end[1]) ** 2)
+
+
+        # Pedestrian Collision penalty
+        if speed > 1.0:
+            if speed <= 20:
+                ped_hit = self.in_rectangle(start[0], start[1], start[2], walker_x, walker_y,
+                                            front_margin=1, side_margin=0.5)
+            else:
+                ped_hit = self.in_rectangle(start[0], start[1], start[2], walker_x, walker_y,
+                                            front_margin=2, side_margin=0.5)
+            if ped_hit:
+                # scale penalty by impact speed
+                scaling = self.linmap(0, Config.max_speed, 0, 1, min(speed , Config.max_speed))  #kmph
+                collision_penalty = hit_penalty * (scaling + 0.1)
+                reward -= collision_penalty
+
+
+        # reward for desired speed - greater than min and less than max speed. Reward is positive if speed greater than desired speed else negative.
+        if self.prev_speed is not None:
+            if(self.prev_speed*3.6 < Config.max_speed):
+                reward += (self.prev_speed*3.6 - Config.min_speed)/(max(self.prev_speed*3.6, Config.max_speed) - Config.min_speed) # can range between -0.25 and + 1
+            else:
+                reward += Config.over_speeding_penalty
+
+        # Cost of collision with obstacles (static + moving car)
+        # All grid positions of incoming_car in player rectangle
+        grid = self.grid_cost.copy()
+        if self.scenario[0] in [3, 7, 8, 10]:
+            car_x, car_y = self.world.incoming_car.get_location().x, self.world.incoming_car.get_location().y
+            xmin = round(car_x - self.vehicle_width / 2)
+            xmax = round(car_x + self.vehicle_width / 2)
+            ymin = round(car_y - self.vehicle_length / 2)
+            ymax = round(car_y + self.vehicle_length / 2)
+            for x in range(xmin, xmax):
+                for y in range(ymin, ymax):
+                    grid[round(x), round(y)] = 100
+            # print(xmin, xmax, ymin, ymax)
+            # x = self.world.incoming_car.get_location().x
+            # y = self.world.incoming_car.get_location().y
+            # grid[round(x), round(y)] = 100
+
+        # Penalizing for hitting an obstacle
+        location = [min(round(start[0] - self.min_x), self.grid_cost.shape[0] - 1),
+                    min(round(start[1] - self.min_y), self.grid_cost.shape[1] - 1)]
+        obstacle_cost = grid[location[0], location[1]]
+        reward -= (obstacle_cost / 200)
+
+        # Penalize braking/acceleration actions to get a smoother ride
+        if self.prev_action.brake > 0: last_action = 2
+        elif self.prev_action.throttle > 0: last_action = 0
+        else: last_action = 1
+        if last_action != 1 and last_action != action:
+            reward -= 0.05
+
+        if goal_dist < 3:
+            goal = True
+            terminal = True
+
+        hit = self.world.collision_sensor.flag or obstacle_cost > 50.0
+        nearmiss = self.in_rectangle(start[0], start[1], start[2], walker_x, walker_y,
+                                     front_margin=1.5, side_margin=0.5, back_margin=0.5)
+        reward = reward/100
+        return reward, goal, hit, nearmiss, terminal
+
+
+
     def get_reward(self, action):
         reward = 0
         goal = False
@@ -158,11 +234,12 @@ class RLAgent(Agent):
             if ped_hit:
                 # scale penalty by impact speed
                 # hit = True
-                scaling = self.linmap(0, Config.max_speed, 0, 1, min(speed * 0.27778, Config.max_speed))  # in m/s
+                scaling = self.linmap(0, Config.max_speed, 0, 1, min(speed, Config.max_speed))  # in kmph
                 collision_reward = Config.hit_penalty * (scaling + 0.1)
                 # if collision_reward >= 700:
                 #     terminal = True
                 reward -= collision_reward
+
         #TODO: How are these numbers calculated?
         reward -= pow(goal_dist / 4935.0, 0.8) * 1.2
 
@@ -199,12 +276,12 @@ class RLAgent(Agent):
 
         # "Heavily" penalize braking if you are already standing still
         if self.prev_speed is not None:
-            if action != 0 and self.prev_speed < 0.28:
+            if action != 0 and self.prev_speed < 0.28: # speed less than 1kmph
                 reward -= Config.braking_penalty
 
-        # Limit max speed to 50
+        # Limit max speed to 50 kmph
         if self.prev_speed is not None:
-            if action == 0 and self.prev_speed > Config.max_speed:
+            if action == 0 and self.prev_speed*3.6 > Config.max_speed:
                 reward -= Config.braking_penalty
 
         # Penalize braking/acceleration actions to get a smoother ride
@@ -213,7 +290,8 @@ class RLAgent(Agent):
         else: last_action = 1
         if last_action != 1 and last_action != action:
             reward -= 0.05
-        # TODO: Penalisation becuase of steering angle seems unfair to me.
+
+        # TODO: Penalisation because of steering angle seems unfair to me.
         reward -= pow(abs(self.prev_action.steer), 1.3) / 2.0
 
         if goal_dist < 3:

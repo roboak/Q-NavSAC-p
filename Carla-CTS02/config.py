@@ -39,28 +39,6 @@ class Config:
     test_ped_speed_range = [0.25, 2.85]
 
     test_ped_distance_range = [4.75, 49.75]
-    # test_car_speed_range = [6, 9]
-
-    # save_freq = 100
-
-    # Setting the SAC training parameters
-    num_pedestrians = 4
-    num_angles = 5
-    num_actions = 3  # num_angles * 3  # acceleration_type
-    # EPS_START = 0.9
-    # EPS_END = 0.1
-    # EPS_DECAY = 500
-    # episode_buffer = 80
-    # adrqn_entropy_coef = 0.005
-    # grad_norm = 0.1
-
-    # # angle + 4 car related statistics + 2*num_pedestrians related statistics + one-hot encoded last_action
-    # input_size = 1 + 4 + 2 * num_pedestrians + num_actions
-    # image_input_size = 100 * 100 * 3
-    # tau = 1
-    # targetUpdateInterval = 10000
-    #
-    # use_dueling = False
 
     # Simulator Parameters
     host = 'localhost'
@@ -74,13 +52,20 @@ class Config:
     gama = 1.7
     despot_port = 1245
     N_DISCRETE_ACTIONS = 3
-    max_speed = 50 * 0.27778  # in m/s
+    min_speed = 3 # in kmph
+    max_speed = 25   # in kmph
     hit_penalty = 1000
     goal_reward = 1000
     braking_penalty = 1
-
+    over_speeding_penalty = -0.5
 
 
     # utils_parameters
     model_checkpointing_interval = 4
     max_checkpoints = 20
+
+    # Target Entropy Scheduler Parameter
+    exp_win_discount = 0.999
+    avg_threshold = 0.01
+    std_threshold = 0.05
+    entropy_discount_factor =0.9

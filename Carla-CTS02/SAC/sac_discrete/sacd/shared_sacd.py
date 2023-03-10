@@ -1,3 +1,4 @@
+import math
 import os
 import numpy as np
 import torch
@@ -6,11 +7,12 @@ from torch.optim import Adam
 from SAC.sac_discrete.BaseAgent import BaseAgent
 from SAC.sac_discrete.sacd.model import DQNBase, TwinnedQNetwork, CategoricalPolicy
 from SAC.sac_discrete.utils import disable_gradients
+from config import Config
 
 
 class SharedSacdAgent(BaseAgent):
 
-    def __init__(self, env, test_env, log_dir, learning_steps, completed_steps, display, num_steps=100000, batch_size=64,
+    def __init__(self, env, test_env, log_dir, learning_steps, completed_steps, display, tes=True, num_steps=100000, batch_size=64,
                  lr=0.0003, memory_size=1000000, gamma=0.99, multi_step=1,
                  target_entropy_ratio=0.98, start_steps=20000,
                  update_interval=4, target_update_interval=8000,
@@ -45,7 +47,14 @@ class SharedSacdAgent(BaseAgent):
         self.q2_optim = Adam(self.online_critic.Q2.parameters(), lr=lr)
 
         # Target entropy is -log(1/|A|) * ratio (= maximum entropy * ratio).
-        self.target_entropy = \
+        self.tes = tes
+        if(tes):
+            self.target_entropy = \
+            -np.log(1.0 / self.env.action_space.n)
+            self.std = 0
+            self.flag_for_first_run = False
+        else:
+            self.target_entropy = \
             -np.log(1.0 / self.env.action_space.n) * target_entropy_ratio
 
         # We optimize log(alpha), instead of alpha.
@@ -177,10 +186,37 @@ class SharedSacdAgent(BaseAgent):
 
         return policy_loss, entropies.detach()
 
+    # Implementation of target entropy scheduler
+    # policy_entropy = mean of the entropy of the batch.
+    def _update_target_entropy(self, policy_entropy):
+        #  Intialise mean_entropy to entropy of the policy when the training starts (max_entropy)
+        if(not self.flag_for_first_run):
+            # Initialisation of self.mean_entropy happens here - first time when this method is called.
+            self.mean_entropy = policy_entropy
+            self.flag_for_first_run = True
+        else:
+            delta = policy_entropy - self.mean_entropy
+            self.mean_entropy = Config.exp_win_discount*self.mean_entropy + (1 - Config.exp_win_discount)*policy_entropy
+            #Intitialised self.std to 0 in init()
+            self.std = Config.exp_win_discount*(self.std + (1-Config.exp_win_discount)*delta**2)
+            var = math.sqrt(self.std)
+            if not ( self.target_entropy - Config.avg_threshold < self.mean_entropy < self.target_entropy + Config.avg_threshold) or var > Config.std_threshold:
+                # target entropy is not changed in this case
+                return
+            else:
+                # update target_entropy
+                self.target_entropy = Config.entropy_discount_factor * self.target_entropy
+
+    # Method defined here as a getter used to log target_entropy in the BaseAgent class
+    def get_target_entropy(self):
+        return self.target_entropy
+
     # Entropy loss is used to tune alpha.
     def calc_entropy_loss(self, entropies, weights):
         assert not entropies.requires_grad
-
+        # Id tes( Target Entropy Scheduler is activated then update target entropy).
+        if self.tes:
+            self._update_target_entropy(entropies.mean().item())
         # Intuitively, we increase alpha when entropy is less than target
         # entropy, vice versa.
         entropy_loss = -torch.mean(
